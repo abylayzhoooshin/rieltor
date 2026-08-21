@@ -88,7 +88,7 @@ MAX_TOKENS = 500
 # впиши строку вместо None. НЕ коммить этот файл с реальным ключом
 # внутри в публичный/общий репозиторий — если работаешь в одиночку
 # локально, это не критично, но привычка так себе.
-API_KEY = "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"  # например: API_KEY = "sk-ant-api03-..."
+API_KEY = ""
 
 RED_FLAG_OPTIONS = [
     "плесень",
