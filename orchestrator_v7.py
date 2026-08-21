@@ -102,14 +102,22 @@ FAST_TRACK_SCRIPT = os.path.join(FAST_DIR, "fast_track.py")
 SLOW_PRICE_DROPS_CSV = os.path.join(SLOW_DIR, "price_drops.csv")
 FAST_NEW_LISTINGS_CSV = os.path.join(FAST_DIR, "fast_new_listings.csv")
 
-BASELINE_CSV = os.path.join(BASE_DIR, "krisha_astana_baseline.csv")
+# Актуальные stage-скрипты живут вместе в pipeline/, эталон — в baseline/,
+# все временные/промежуточные файлы прогона оркестратора — в cache/
+# (не трогаются вручную, безопасно чистить между прогонами).
+PIPELINE_DIR = os.path.join(BASE_DIR, "pipeline")
+BASELINE_DIR = os.path.join(BASE_DIR, "baseline")
+CACHE_DIR = os.path.join(BASE_DIR, "cache")
+os.makedirs(CACHE_DIR, exist_ok=True)
+
+BASELINE_CSV = os.path.join(BASELINE_DIR, "krisha_astana_baseline.csv")
 SLOW_DETAIL_CSV = os.path.join(SLOW_DIR, "krisha_astana_detail.csv")
-STAGE3_OUTPUT_FAST_CSV = os.path.join(BASE_DIR, "stage3_incoming_fast_latest.csv")
-STAGE3_OUTPUT_SLOW_CSV = os.path.join(BASE_DIR, "stage3_incoming_slow_latest.csv")
-STAGE3_MODULE = os.path.join(BASE_DIR, "stage3_benchmark_v3.py")
-INCOMING_CLEAN_SCRIPT = os.path.join(BASE_DIR, "incoming_clean_v2.py")
-INCOMING_CACHE_FAST = os.path.join(BASE_DIR, "incoming_llm_analysis_cache_fast.json")
-INCOMING_CACHE_SLOW = os.path.join(BASE_DIR, "incoming_llm_analysis_cache_slow.json")
+STAGE3_OUTPUT_FAST_CSV = os.path.join(CACHE_DIR, "stage3_incoming_fast_latest.csv")
+STAGE3_OUTPUT_SLOW_CSV = os.path.join(CACHE_DIR, "stage3_incoming_slow_latest.csv")
+STAGE3_MODULE = os.path.join(PIPELINE_DIR, "stage3_benchmark_v3.py")
+INCOMING_CLEAN_SCRIPT = os.path.join(PIPELINE_DIR, "incoming_clean_v2.py")
+INCOMING_CACHE_FAST = os.path.join(CACHE_DIR, "incoming_llm_analysis_cache_fast.json")
+INCOMING_CACHE_SLOW = os.path.join(CACHE_DIR, "incoming_llm_analysis_cache_slow.json")
 
 # Файлы САМОГО оркестратора — не трогаются треками.
 EVER_SENT_IDS_FILE = os.path.join(BASE_DIR, "ever_sent_ids.json")
@@ -637,8 +645,8 @@ async def clean_incoming_rows(rows, source):
 
     import tempfile
 
-    raw_path = os.path.join(BASE_DIR, f"_incoming_{source}_raw.csv")
-    clean_path = os.path.join(BASE_DIR, f"_incoming_{source}_clean.csv")
+    raw_path = os.path.join(CACHE_DIR, f"_incoming_{source}_raw.csv")
+    clean_path = os.path.join(CACHE_DIR, f"_incoming_{source}_clean.csv")
     cache_path = INCOMING_CACHE_FAST if source == "fast" else INCOMING_CACHE_SLOW
 
     # Сохраняем весь worker output без market filtering.

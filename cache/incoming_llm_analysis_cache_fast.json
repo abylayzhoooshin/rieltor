@@ -1,0 +1,176 @@
+{
+  "1014023709": {
+    "text_hash": "af6569a9587c8412e537e177a92c22049de7edc90ca5ba2cf4f331c353e700bb",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {}
+    }
+  },
+  "1014080269": {
+    "text_hash": "c1ee647feb11c63db5dd6c113ee0ded6cc0c81aacf8451a654c4109bfd5d713f",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [
+        "мебель: полностью"
+      ],
+      "extra_attributes": {
+        "parking": "теплое парковочное место на 1 машину"
+      }
+    }
+  },
+  "1015015986": {
+    "text_hash": "d23599e8625b4433342d4c4947f38ad9ac25aeced8c4c6744c8e78abb5dd6164",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {}
+    }
+  },
+  "1015011502": {
+    "text_hash": "fdb86f8ea8e1e2b959d04e191108dcf9d4d1556fab079a69069fcc1049b17e66",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {}
+    }
+  },
+  "1006423702": {
+    "text_hash": "43778529aa97667c4c87203512b78a906d00044eab58e43e2cbb36b2927e3b4c",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "pets": "не указано",
+        "parking": "true",
+        "metro": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "1014794556": {
+    "text_hash": "76d6822ad4d98a3e24add4bc95707c6e5dfd856ccbcda12a553cca5db75abc99",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "мебель": "полностью"
+      }
+    }
+  },
+  "1014770623": {
+    "text_hash": "bb234e630e303a983884136ab3a45a4f71f763e6ecd777e2bb8501065e0a9958",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "pets": "без маленьких детей",
+        "metro": "район 10 поликлиники",
+        "security": "не указано"
+      }
+    }
+  },
+  "1013716529": {
+    "text_hash": "2c6b24b285d4462d12b06dc9933112ba8cd7b8fe38dafebfca61ad197bf70b2b",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "дизайнерский ремонт"
+      ],
+      "extra_attributes": {
+        "metro": "Улы Дала - Гейдар Алиев"
+      }
+    }
+  },
+  "698904017": {
+    "text_hash": "7b460582c0927d9437927d35eac7c1b5f8e9dfdcc39126e506c34b3e2e30cb90",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {}
+    }
+  },
+  "1014967476": {
+    "text_hash": "a58c9003dd42d23025ce44660cd79f85241ab1737eefd018738a4163d958485f",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "евроремонт",
+        "мебель"
+      ],
+      "extra_attributes": {
+        "metro": "МЕГА ЕХПО ЛРТ БОТАНИЧЕСКИЙ САД",
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "1008951942": {
+    "text_hash": "6f3f6af8fe94cf892a407cc885acef8fd8b0b88b16dd7080c8a70eb9cb4e14cd",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "metro": "рядом с Damu Mall",
+        "pets": "нет",
+        "view": "не указан",
+        "security": "не указан",
+        "balcony": "не указан",
+        "parking": "не указан"
+      }
+    }
+  },
+  "1014869599": {
+    "text_hash": "0b7d289dcdbcd41f75d43e15dde187339542a4dcf1d6bca7476e633adc3f914d",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "metro": "в шаговой доступности",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "1006771459": {
+    "text_hash": "812cd7e064e920f2ee0a42cccc05ff76c778a15921a374001a98dd34f3d4aff1",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "metro": "рядом",
+        "pets": "сдам семейным, порядочным и чистоплотным людям",
+        "view": "грибной канал не подалеку"
+      }
+    }
+  }
+}
