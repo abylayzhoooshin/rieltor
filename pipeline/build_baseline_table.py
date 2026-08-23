@@ -1,1054 +1,1117 @@
 """
-Baseline table builder — эталонная (справочная) таблица для Stage 3.
+Stage 3 — объективная оценка цена/качество для новых объявлений.
 
-ЗАЧЕМ:
-    Stage 3 (stage3_benchmark.py) строит когорты и считает diff_pct
-    объявления относительно похожих. Для этого ему нужен большой,
-    ЧИСТЫЙ и ЗАМОРОЖЕННЫЙ пул объявлений — эталон, с которым потом
-    сравниваются новые объявления (из fast/slow track или новых
-    прогонов парсера). Этот скрипт готовит такой пул ОДИН РАЗ из
-    сырого снепшота парсера (krisha_astana_detail.csv), не трогая сам
-    сырой файл.
+Главный принцип:
+    baseline = строгий, чистый и замороженный рынок;
+    incoming = реальные новые объявления, которые НЕ проходят жёсткий
+               baseline-фильтр.
 
-ЧТО ДЕЛАЕТ (по порядку — порядок важен, см. ниже):
-    1. Stage 1 — переиспользует clean() из stage1_clean.py как есть:
-       дедуп по id, отсев битых price/square/rooms, отсев
-       archived/неживых (storage != "live"), проставляет
-       is_installment_segment (пока всегда False — см. stage1_clean.py).
-    2. Дедуп по photo_set_hash (НОВОЕ) — та же физическая квартира
-       вполне может быть выставлена несколькими объявлениями (разные
-       риелторы/агентства перевыставляют одну и ту же квартиру). Stage 1
-       дедупит только по id, это другое. Если это не убрать ДО
-       статистических фильтров — дубли исказят медиану/IQR когорты
-       (тот же ЖК/улица посчитается "гуще", чем есть на самом деле).
-       Из группы дублей (как и при дедупе по id в Stage 1) оставляется
-       САМАЯ СВЕЖАЯ запись (по scraped_at/added_at), а не первая по
-       порядку файла — см. freshest_first().
-    2b. Дедуп по адресу+планировке (НОВОЕ) — страховка поверх п.2:
-       photo_set_hash ловит только точное совпадение набора фото; если
-       агентство перезалило другой набор — дубль проскочит мимо п.2.
-       Ключ (улица, дом, этаж, комнатность, площадь≈) ловит такие
-       случаи отдельно. См. докстринг dedupe_by_address_layout() —
-       там же ограничение (риск склеить разные квартиры с одинаковой
-       типовой планировкой на одном этаже).
-    3. floor > floor_total (НОВОЕ) — целостность данных: если этаж
-       больше этажности дома, это ошибка карточки/парсинга, а не
-       квартира с "крайним этажом". Stage 3 использует floor/floor_total
-       именно для скидки на крайний этаж — мусор в этом поле бьёт по
-       structural-коэффициенту, а не только по цене.
-    4. Price sanity (жёсткие границы + IQR по price_m2) — отсекает
-       объявления с явно сломанной ценой за м² (опечатки типа "50 тг/м²"
-       и т.п.), которых Stage 1 не ловит, потому что цена формально
-       валидна (> 0). См. PRICE / SQUARE SANITY ниже.
-    5. Square sanity (НОВОЕ, жёсткие границы + IQR по square_m2) — та же
-       логика, что и для цены, но по площади: студия в 5 м² или
-       "квартира" в 500 м² почти наверняка опечатка/ошибка парсинга,
-       которую фильтр цены за м² может не поймать (соотношение
-       цена/площадь там может выглядеть нормальным).
-    6. Stage 2 — переиспользует analyze_all() из stage2_llm_analyze.py:
-       LLM-разметка finish_type/red_flags/premium_markers/
-       extra_attributes/requires_manual_review. Использует ТОТ ЖЕ файл
-       кэша (llm_analysis_cache.json), что и обычный Stage 2 — если
-       запись уже анализировалась когда-то (тем же текстом), повторно
-       она не отправляется в API.
-    7. Физический отсев по итогам Stage 2 (НОВОЕ, по решению
-       пользователя) — записи с серьёзными red_flags (плесень, залив,
-       пожар, судебные споры, аварийное состояние, несогласованная
-       перепланировка → requires_manual_review) ИЛИ
-       is_installment_segment уходят в dropped-лог, а НЕ остаются в
-       эталоне с пометкой. Раньше их исключением на этапе когорт
-       занимался Stage 3 (см. его докстринг), теперь эталон изначально
-       компактнее — таких строк там просто нет.
+Новые объявления не исключаются из-за:
+    - риелтора;
+    - отсутствия фото;
+    - red_flags;
+    - неполной LLM-разметки;
+    - рассрочки.
 
-    Порядок 2-3 (дедуп/целостность) ДО 4-5 (статистика) осознанный:
-    статистические фильтры (IQR) считают квартили по группе — если в
-    группе есть дубли или мусорные записи, это смещает сами границы,
-    по которым потом всё остальное фильтруется.
+Вместо этого эти признаки становятся предупреждениями и снижают
+уверенность. Жёстко невозможные/сломанные числовые данные не позволяют
+сделать осмысленный price/m² score, но строка всё равно остаётся в output.
 
-РЕЖИМ РАБОТЫ (ОБНОВЛЕНО — инкрементальное пополнение вместо заморозки):
-    Раньше: если output-файл уже существовал, скрипт вообще ничего не
-    делал (защита от случайной пересборки). Теперь, по решению
-    пользователя, это НЕ разовый снимок, а растущая база: если
-    krisha_astana_baseline.csv уже существует, скрипт переходит в
-    режим ДОПОЛНЕНИЯ —
-        1. читает существующий baseline и берёт из него id,
-           photo_set_hash и ключи (улица, дом, этаж, комнатность,
-           площадь) уже сохранённых объявлений;
-        2. из --input берёт только СТРОКИ С НОВЫМИ id (которых ещё нет
-           в baseline) — уже сохранённые записи не трогаются и не
-           перепроверяются повторно;
-        3. эти кандидаты проходят Stage 1 → фото-дедуп → адрес-дедуп →
-           (в обоих дедупах проверка идёт и против уже существующего
-           baseline, не только внутри новой пачки) → целостность этажа
-           → price/square sanity (IQR считается по объединению
-           baseline + новой пачки внутри группы rooms — так границы
-           статистически честнее, чем по одной маленькой пачке);
-        4. прошедшие фильтр строки ДОПИСЫВАЮТСЯ в конец
-           krisha_astana_baseline.csv (существующие строки не
-           переписываются и не переупорядочиваются), новые отсевы —
-           в конец .dropped.csv.
-    Если output-файла ещё нет — поведение как раньше: полная сборка с
-    нуля из всего --input.
+Вердикт:
+    - НАХОДКА — цена заметно ниже объективной базы при достаточной уверенности;
+    - СПРАВЕДЛИВАЯ — находится около ожидаемого рынка;
+    - ПЕРЕОЦЕНЕНА — заметно выше ожидаемого рынка;
+    - НЕДОСТАТОЧНО ДАННЫХ — сравнение слишком слабое;
+    - ТРЕБУЕТ ПРОВЕРКИ — скидка аномально большая (>= SUSPICIOUS_DIFF_THRESHOLD)
+      И одновременно уверенность базы низкая или описание скудное. Это НЕ
+      "находка": настолько большой разрыв при слабых входных данных чаще
+      означает ошибку когорты (не тот finish_type, шумная/маленькая когорта)
+      или необъявленный дефект, чем реально отличную цену. Отличается от
+      РУЧНАЯ ПРОВЕРКА тем, что здесь нет red_flag — есть только подозрительно
+      хорошая математика;
+    - РУЧНАЯ ПРОВЕРКА — есть серьёзный red flag, который нельзя честно
+      превращать в ценовую скидку автоматически.
 
-СОЗНАТЕЛЬНО НЕ ДЕЛАЕТ (пока, по решению пользователя — см. переписку):
-    - не трогает krisha_astana_detail.csv (только читает)
-    - НЕ чистит и НЕ удаляет из baseline записи, которые пропали с
-      Крыши (объявление снято/устарело) — они специально остаются как
-      исторический ценовой ориентир: цены на м² в Астане не настолько
-      волатильны, чтобы это было проблемой прямо сейчас. Периодическая
-      чистка устаревших записей — отдельная будущая задача (например,
-      раз в месяц), сюда сознательно не входит.
-    - --skip-llm (см. CLI) пропускает Stage 2 (LLM-разметку
-      finish_type/red_flags/premium_markers) для новых строк ради
-      скорости: они дописываются в baseline с пустыми Stage 2 полями и
-      llm_skipped_error=True (как маркер "ещё не проанализировано", а
-      не "было проанализировано и совпало с ошибкой") — так позже
-      можно будет отдельным прогоном найти и доразметить именно их.
-      Пока llm_skipped_error=True, физический отсев по red_flags/
-      рассрочке (Шаг 7 ниже) к этим строкам не применяется — редкий
-      компромисс: пропускной способности важнее полнота базы прямо
-      сейчас, разметку и связанный с ней отсев можно досчитать позже.
-    - НЕ фильтрует по координатам (кривой geocoding вне Астаны) и НЕ
-      отсекает устаревшие по published_date — по решению пользователя,
-      оставлено вне скоупа этого шага.
-    - не решает финальный вердикт (находка/справедливая/переоценена)
-      — это по-прежнему не входит в Stage 3, тем более не сюда
+Уровни когорты (build_cohort), от точного к широкому:
+    L1/2  — тот же ЖК, та же комнатность.
+    L2b   — тот же street+house_num, та же комнатность (тот же дом,
+            даже если complex_key не проставлен).
+    L2.5  — тот же ЖК, ДРУГАЯ комнатность; price_m2 сравнимых объявлений
+            пересчитывается через отношение городских медиан по
+            комнатности. Специально сконструирован НЕ через price_segment
+            (в отличие от L3), чтобы не заводить циркулярность: сегмент
+            цели сам вычисляется из городских квантилей price_m2, то есть
+            использование сегмента для сравнения — это использование
+            производной от цены величины, чтобы судить о самой цене.
+            L2.5 отбирает когорту чисто структурно (тот ЖК, другая
+            комнатность) и только потом один раз применяет городской (не
+            локальный) коэффициент пересчёта — цена конкретного дома
+            никак не влияет на свой же бенчмарк.
+    L3    — та же улица, та же комнатность, тот же price_segment.
+    L4/L5 — радиус 1км/3км с сужением по цене на L5.
+    L6    — весь город, та же комнатность/чистовая.
 
-PRICE / SQUARE SANITY (общая логика для обоих полей):
-    Двухуровневый фильтр, один и тот же код для price_m2 и square_m2
-    (см. apply_hard_bounds/apply_iqr_filter — принимают функцию
-    извлечения значения и подписи поля):
+Важно:
+    Stage 3 не утверждает, что квартира "хорошая" только потому, что она
+    дешёвая. Поэтому отдельно выводятся:
+        value_score              — насколько цена привлекательна;
+        quality_evidence_score   — насколько много подтверждений качества;
+        data_confidence          — насколько надёжен сам benchmark;
+        seller_class             — хозяин / риелтор / неизвестно.
 
-    1) Жёсткий пол/потолок — константы, НЕ подстраивающиеся под
-       конкретный датасет. Для price_m2 откалиброваны по рыночной
-       медиане аренды в Астане (~5500 тг/м²/мес на момент написания).
-       Для square_m2 — по здравому смыслу жилых квартир (не студии в
-       5 м² и не "квартиры" в полгектара). Всё вне границ — почти
-       наверняка опечатка/битая карточка.
-    2) IQR-выброс (метод Тьюки, k=IQR_MULTIPLIER) — ПОСЛЕ жёсткого
-       фильтра, отдельно внутри каждой группы по комнатности (rooms),
-       потому что и цена за м², и площадь у студий и у 4-комнатных
-       объективно разные база. Группы меньше IQR_MIN_GROUP_SIZE не
-       трогаются статистикой (ненадёжно на таком объёме) — только
-       жёсткие границы.
-
-    Все причины отсева пишутся в drop_reason baseline.dropped.csv с
-    конкретными цифрами — чтобы можно было глазами проверить, что
-    фильтр не режет лишнее.
-
-СХЕМА ВЫХОДА:
-    krisha_astana_baseline.csv — колонки как у krisha_astana_detail.csv
-    + is_installment_segment (Stage 1) + finish_type/red_flags/
-    premium_markers/extra_attributes/requires_manual_review (Stage 2).
-    Это РОВНО та же схема, что у krisha_astana_analyzed.csv — то есть
-    Stage 3 может принять этот файл на вход без каких-либо переделок.
-
-    krisha_astana_baseline.dropped.csv — всё, что отсеялось на любом из
-    шагов, с колонками drop_stage (stage1 / photo_dedup /
-    floor_integrity / price_sanity / square_sanity / stage2_exclusion)
-    и drop_reason.
-
-    Колонки requires_manual_review/is_installment_segment в самом
-    baseline.csv по-прежнему присутствуют (для совместимости схемы со
-    Stage 3), но теперь там всегда False — если бы было True, строка
-    уже ушла бы в dropped.csv на шаге 7.
-
-Запуск:
-    python build_baseline_table.py \
-        --input krisha_astana_detail.csv \
-        --output krisha_astana_baseline.csv \
-        --cache llm_analysis_cache.json \
-        --concurrency 4
+Для baseline используется только пригодный эталонный пул.
+Для incoming текущая квартира НИКОГДА не подмешивается в baseline.
 """
 
 import argparse
-import asyncio
 import csv
-import json
-import os
+import math
+import re
 import statistics
 import sys
-from datetime import datetime, timezone
 
-from stage1_clean import clean as stage1_clean_rows
-from stage2_llm_analyze import (
-    analyze_all,
-    load_cache,
-    save_cache,
-    requires_manual_review,
-    OUTPUT_EXTRA_FIELDNAMES,
-    DEFAULT_RESULT,
-)
 
 # ============================== CONFIG ==============================
 
-# Жёсткие границы price_m2 (тг/м²/мес) — калибровано по медиане аренды
-# в Астане (~5500 тг/м² на момент написания). Не статистика, а защита
-# от абсурда: опечатки, цена за период вместо м², мусорные карточки.
-HARD_MIN_PRICE_M2 = 1000
-HARD_MAX_PRICE_M2 = 30000
+N_MIN = 8
+# Minimum cohort size is differentiated by level: L1/2 (now a union of
+# complex_key matches and street+house_num matches — see build_cohort) is
+# tight, high-precision matching (same building) where even n=3 is
+# informative; the "2b" grading within L1/2 reuses this same threshold.
+# L3 (street, no house number) and the radius-based L4/L5 are
+# progressively looser matches with more inherent heterogeneity, so they
+# need more listings before the median is trustworthy.
+MIN_COHORT_L12 = 3
+MIN_COHORT_L25 = 4
+MIN_COHORT_L3 = 4
+MIN_COHORT_L4 = 5
+MIN_COHORT_L5 = 6
 
-# Жёсткие границы square_m2 — здравый смысл жилых квартир, не
-# статистика. Меньше 12 м² — не квартира (или ошибка парсинга); больше
-# 300 м² — экзотика, которую не с чем сравнивать в обычной когорте.
-HARD_MIN_SQUARE_M2 = 12
-HARD_MAX_SQUARE_M2 = 300
+RADIUS_L4_KM = 1.0
+RADIUS_L5_KM = 3.0
+PRICE_RANGE_L5_PCT = 0.30
 
-# IQR (Тьюки) — применяется отдельно внутри каждой группы по комнатности,
-# уже ПОСЛЕ жёсткого фильтра. Общий для price_m2 и square_m2.
-#
-# k=3, а не классические 1.5 — сознательно ослаблено. Группировка тут
-# только по rooms (city-wide), без района/ЖК — это НЕ настоящая когорта
-# для сравнения, а грубая страховка от опечаток на этапе сборки эталона.
-# При k=1.5 честная рыночная вариация по районам (дорогая, но нормальная
-# квартира в престижном районе среди дешёвых окраинных с тем же числом
-# комнат) рискует вылететь как "выброс", хотя это не мусор, а сигнал,
-# который нужен дальше. Настоящую точную отбраковку выбросов внутри
-# узкой когорты (свой ЖК → рядом) делает Stage 3 — там IQR с k=1.5
-# уместнее, потому что группа уже однородная. Здесь, city-wide, k=3
-# ловит только действительно дикие значения (опечатки в цене/площади),
-# а не естественный разброс.
-IQR_MULTIPLIER = 3
-IQR_MIN_GROUP_SIZE = 8  # меньше — статистика ненадёжна, IQR не считаем
+# Fallback only. If baseline has enough observations, the actual local
+# extreme-floor effect is estimated from the baseline.
+DEFAULT_EXTREME_FLOOR_FACTOR = 0.95
+MIN_FLOOR_MODEL_N = 30
+FLOOR_FACTOR_MIN = 0.90
+FLOOR_FACTOR_MAX = 1.00
 
-# Допуск по площади (м²) для дедупа по адресу+планировке — см.
-# dedupe_by_address_layout(). Разные объявления одной и той же квартиры
-# иногда указывают чуть разную площадь (округление/опечатка на десятые).
-SQUARE_DEDUP_TOLERANCE_M2 = 1.0
+# Verdict thresholds are deliberately wider than the old v3 thresholds
+# when confidence is weak.
+FIND_THRESHOLD_HIGH_CONF = 0.10
+FIND_THRESHOLD_MED_CONF = 0.13
+FIND_THRESHOLD_LOW_CONF = 0.18
 
-DROPPED_EXTRA_FIELDNAMES = ["drop_stage", "drop_reason"]
+OVERPRICE_THRESHOLD_HIGH_CONF = -0.07
+OVERPRICE_THRESHOLD_MED_CONF = -0.10
+OVERPRICE_THRESHOLD_LOW_CONF = -0.15
 
-# ============================== ХЕЛПЕРЫ ==============================
+# An apparent discount this large, combined with weak confidence or a thin
+# listing, is more often a sign that the cohort is wrong (bad finish_type
+# match, tiny/noisy cohort, undeclared defect) than a sign that the
+# apartment is genuinely a great deal. Above this threshold under those
+# conditions we downgrade НАХОДКА to a review verdict instead of getting
+# MORE confident the bigger the gap gets.
+SUSPICIOUS_DIFF_THRESHOLD = 0.25
+SUSPICIOUS_DIFF_CONF_FLOOR = 0.55
+THIN_DESCRIPTION_WARNINGS = {"finish_type_неизвестен", "нет_фото", "мало_фото"}
+
+
+def is_thin_description(warnings):
+    return bool(THIN_DESCRIPTION_WARNINGS.intersection(warnings))
+
+OUTPUT_EXTRA_FIELDNAMES = [
+    "status",
+    "verdict",
+    "verdict_reason",
+    "finish_bucket",
+    "price_segment",
+    "cohort_level",
+    "cohort_size",
+    "cohort_dispersion",
+    "confidence_weight",
+    "benchmark_confidence",
+    "is_extreme_floor",
+    "floor_adjustment_factor",
+    "base_price_m2",
+    "base_price_m2_corrected",
+    "diff_pct",
+    "robust_z",
+    "value_score",
+    "quality_evidence_score",
+    "price_quality_score",
+    "price_quality_label",
+    "data_confidence",
+    "seller_class",
+    "seller_confidence",
+    "seller_reason",
+    "data_warnings",
+]
+
+
+# ============================== HELPERS ==============================
 
 
 def to_float(x):
     try:
-        if x is None or x == "":
+        if x is None or str(x).strip() == "":
             return None
         return float(x)
     except (TypeError, ValueError):
         return None
 
 
-CANDIDATE_DELIMITERS = [",", ";", "\t"]
+def to_bool(x):
+    return str(x).strip().lower() in ("true", "1", "yes", "y")
 
 
-def detect_delimiter(path):
-    """
-    csv.DictReader по умолчанию ожидает запятую. Если файл пересохранили
-    в Excel на локали, где системный разделитель списков — ';' (обычное
-    дело для RU/KZ Windows), колонки после чтения окажутся битыми: 'id'
-    и все остальные поля пропадут как отдельные ключи, а вся строка
-    схлопнется в одно поле. Проверяем заголовок на нескольких
-    кандидатах-разделителях и берём тот, при котором находятся 'id' и
-    'price' — это надёжнее универсального Sniffer'а, т.к. full_description
-    может содержать что угодно и сбивать эвристику.
-    """
-    with open(path, "r", encoding="utf-8-sig", newline="") as f:
-        first_line = f.readline()
-    for d in CANDIDATE_DELIMITERS:
-        header = [h.strip() for h in first_line.strip().split(d)]
-        if "id" in header and "price" in header:
-            return d
-    return ","  # фолбэк — ниже всё равно всплывёт понятная ошибка
+def parse_jsonish(value, default):
+    """Small tolerant parser for CSV fields containing JSON-like lists/dicts."""
+    if value is None:
+        return default
+    if isinstance(value, (list, dict)):
+        return value
+    text = str(value).strip()
+    if not text:
+        return default
+
+    import json
+    try:
+        return json.loads(text)
+    except Exception:
+        # Some historical CSVs contain Python-ish single-quoted lists.
+        try:
+            import ast
+            return ast.literal_eval(text)
+        except Exception:
+            return default
 
 
-def fix_duplicate_id_header(header):
-    """
-    ОБХОДНОЙ ПУТЬ (см. переписку) — баг в парсере: первая колонка по
-    смыслу это id объявления, но названа "complex_id", а настоящий
-    complex_id идёт дальше по списку тоже как "complex_id" — имя
-    дублируется, реальной колонки "id" в файле нет вообще.
-    csv.DictReader на дублирующихся именах отдаёт только ПОСЛЕДНЕЕ
-    значение под этим ключом — то есть молча теряет первую колонку.
-
-    Это костыль на стороне чтения, а не исправление первопричины —
-    правильное место фикса всё ещё сам парсер, который пишет
-    krisha_astana_detail.csv (переименовать первую колонку в 'id' при
-    записи). Когда там поправят — эта функция станет no-op (условие
-    ниже просто не совпадёт), можно смело оставить в коде.
-    """
-    if "id" in header:
-        return header, False
-    if header.count("complex_id") < 2:
-        return header, False
-
-    fixed = list(header)
-    first_idx = fixed.index("complex_id")
-    fixed[first_idx] = "id"
-    return fixed, True
+def haversine_km(lat1, lon1, lat2, lon2):
+    r = 6371.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = (
+        math.sin(dphi / 2) ** 2
+        + math.cos(p1) * math.cos(p2) * math.sin(dlambda / 2) ** 2
+    )
+    return 2 * r * math.asin(math.sqrt(a))
 
 
 def load_rows(path):
-    delimiter = detect_delimiter(path)
     with open(path, "r", encoding="utf-8-sig", newline="") as f:
-        raw_header = next(csv.reader(f, delimiter=delimiter))
-        header, patched = fix_duplicate_id_header(raw_header)
-        if patched:
-            print(
-                "⚠️  Заголовок содержит 'complex_id' дважды и не содержит 'id' — "
-                "похоже на баг в парсере (см. докстринг fix_duplicate_id_header). "
-                "Переименовал первую колонку в 'id' на лету. Почини это в источнике "
-                "krisha_astana_detail.csv, это временный костыль."
-            )
-        rows = list(csv.DictReader(f, fieldnames=header, delimiter=delimiter))
-
-    if rows and "id" not in rows[0]:
-        preview = list(rows[0].keys())[:3]
-        raise ValueError(
-            f"Не нашёл колонку 'id' в {path} (пробовал разделитель {delimiter!r}). "
-            f"Первые ключи после чтения: {preview}. Похоже, файл был "
-            "пересохранён с другим разделителем колонок или битой "
-            "кодировкой (например, Excel мог сохранить CSV с ';' вместо "
-            "','). Открой файл в текстовом редакторе (не Excel) и "
-            "проверь, чем реально разделены колонки в первой строке."
-        )
-    return rows
+        return list(csv.DictReader(f))
 
 
-def price_m2_value(row):
-    price_m2 = to_float(row.get("price_m2"))
-    if price_m2 is not None:
-        return price_m2
+def safe_rooms(row):
+    raw = row.get("rooms")
+    if raw is None:
+        return None
+    s = str(raw).strip().lower()
+    # Preserve "студия" as a separate category if it exists.
+    if s in ("studio", "студия"):
+        return "studio"
+    try:
+        return str(int(float(s)))
+    except Exception:
+        return s or None
+
+
+def infer_price_m2(row):
+    pm2 = to_float(row.get("price_m2"))
+    if pm2 is not None and pm2 > 0:
+        return pm2
+
     price = to_float(row.get("price"))
     square = to_float(row.get("square_m2"))
-    if price and square:
+    if price and price > 0 and square and square > 0:
         return price / square
+
     return None
 
 
-def square_m2_value(row):
-    return to_float(row.get("square_m2"))
-
-
-def rooms_group_key(row):
-    return row.get("rooms")
-def to_bool(value):
-    if isinstance(value, bool):
-        return value
-
-    if value is None:
-        return False
-
-    return str(value).strip().lower() in {
-        "1", "true", "yes", "y", "да"
-    }
-
-# ============================== СВЕЖЕСТЬ (для дедупа) ==============================
-
-
-def parse_freshness(row):
+def seller_class(row):
     """
-    Та же логика, что и в stage1_clean.py (см. её докстринг там) —
-    отдельная копия здесь, чтобы дедуп по фото и по адресу тоже выбирал
-    самую свежую запись группы, а не первую по порядку файла.
-    scraped_at (точный ISO-datetime) → фолбэк на added_at (дата) →
-    None, если нет ни того, ни другого (тогда сортировка ничего не
-    меняет и берётся первая встреченная, как раньше).
+    Сначала используем структурированный seller_type, затем owner_name.
+    По текущей логике источника 'Хозяин' — наиболее сильный маркер владельца.
+    Конкретное имя/компания без этого маркера считаем агентом/риелтором,
+    но НЕ штрафуем цену за это.
     """
-    for field in ("scraped_at", "added_at"):
-        raw = (row.get(field) or "").strip()
-        if not raw:
-            continue
-        try:
-            dt = datetime.fromisoformat(raw)
-        except ValueError:
-            continue
-        if dt.tzinfo is not None:
-            dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
-        return dt
-    return None
+    owner = (row.get("owner_name") or "").strip()
+    seller = (row.get("seller_type") or "").strip().lower()
+    identity = to_bool(row.get("is_identity_confirmed"))
+
+    if owner == "Хозяин":
+        return "owner", 1.0, "owner_name=Хозяин"
+    if any(x in seller for x in ("owner", "хозя", "собствен")):
+        return "owner", 0.85 if not identity else 1.0, "seller_type указывает на владельца"
+    if any(x in seller for x in ("agent", "риел", "агент", "company", "компан")):
+        return "agent", 0.90, "seller_type указывает на агентство/риелтора"
+    if owner:
+        return "agent", 0.80, "указано конкретное имя вместо 'Хозяин'"
+    return "unknown", 0.35, "маркер владельца/риелтора не определён"
 
 
-def freshest_first(group):
-    """Сортирует группу дублей по убыванию свежести. Стабильна: если ни
-    у кого нет scraped_at/added_at, порядок группы не меняется — первая
-    встреченная в файле остаётся первой (старое поведение как фолбэк)."""
-    return sorted(
-        group,
-        key=lambda r: (parse_freshness(r) is not None, parse_freshness(r) or datetime.min),
-        reverse=True,
+def infer_finish_bucket(row):
+    finish = (row.get("finish_type") or "").strip().lower()
+    if finish == "черновая":
+        return "rough"
+    if finish in {"чистовая", "предчистовая"}:
+        return "finished"
+    return "unknown"
+
+
+def enrich(row):
+    row = dict(row)
+    row["_price_m2"] = infer_price_m2(row)
+    row["_rooms"] = safe_rooms(row)
+    row["_lat"] = to_float(row.get("latitude"))
+    row["_lon"] = to_float(row.get("longitude"))
+    row["_complex_key"] = row.get("complex_id") or row.get("complex_name") or None
+
+    floor = to_float(row.get("floor"))
+    floor_total = to_float(row.get("floor_total"))
+    row["_floor"] = floor
+    row["_floor_total"] = floor_total
+    row["_is_extreme_floor"] = bool(
+        floor is not None
+        and floor_total is not None
+        and floor_total >= floor
+        and (floor == 1 or floor == floor_total)
     )
 
+    row["_finish_bucket"] = infer_finish_bucket(row)
 
-# ============================== ДЕДУП ПО ФОТО ==============================
+    # Only baseline rows are allowed to be excluded from the reference pool.
+    row["_excluded_baseline"] = (
+        to_bool(row.get("requires_manual_review"))
+        or to_bool(row.get("is_installment_segment"))
+        or not row.get("id")
+        or row["_price_m2"] is None
+        or row["_rooms"] is None
+    )
+
+    sc, sc_conf, sc_reason = seller_class(row)
+    row["_seller_class"] = sc
+    row["_seller_confidence"] = sc_conf
+    row["_seller_reason"] = sc_reason
+    return row
 
 
-DUPLICATE_PRICE_TOLERANCE_PCT = 0.03  # >3% разницы в цене — уже не "тот же листинг"
+def compute_price_segments(pool):
+    values = sorted(
+        r["_price_m2"] for r in pool
+        if r["_price_m2"] is not None
+    )
+    if len(values) < 8:
+        return {r.get("id"): "комфорт" for r in pool}
+
+    q25 = statistics.quantiles(values, n=4, method="inclusive")[0]
+    q75 = statistics.quantiles(values, n=4, method="inclusive")[2]
+
+    result = {}
+    for r in pool:
+        pm2 = r["_price_m2"]
+        if pm2 is None:
+            result[r.get("id")] = "комфорт"
+        elif pm2 <= q25:
+            result[r.get("id")] = "эконом"
+        elif pm2 >= q75:
+            result[r.get("id")] = "бизнес"
+        else:
+            result[r.get("id")] = "комфорт"
+    return result
 
 
-def _looks_like_different_listing(a, b):
+def citywide_median_by_rooms(pool):
+    by_rooms = {}
+    for r in pool:
+        if r["_price_m2"] is not None and r["_rooms"] is not None:
+            by_rooms.setdefault(r["_rooms"], []).append(r["_price_m2"])
+    return {
+        rooms: statistics.median(values)
+        for rooms, values in by_rooms.items()
+        if values
+    }
+
+
+def same_target_id(r, target):
+    return str(r.get("id")) == str(target.get("id")) and r.get("id") not in (None, "")
+
+
+def price_segment_boundaries(pool):
+    values = sorted(r["_price_m2"] for r in pool if r["_price_m2"] is not None)
+    if len(values) < 8:
+        return None, None
+    qs = statistics.quantiles(values, n=4, method="inclusive")
+    return qs[0], qs[2]
+
+
+def target_price_segment(target, pool):
+    pm2 = target.get("_price_m2")
+    if pm2 is None:
+        return "неизвестен"
+    q25, q75 = price_segment_boundaries(pool)
+    if q25 is None:
+        return "комфорт"
+    if pm2 <= q25:
+        return "эконом"
+    if pm2 >= q75:
+        return "бизнес"
+    return "комфорт"
+
+
+def _norm_addr(s):
+    """Normalize a street/house_num fragment for equality comparison.
+
+    Raw scraped text ("Самал 5" vs "  самал, 5") would otherwise cause
+    false negatives when matching by address; None/empty collapses to
+    None so callers can cheaply check truthiness before comparing.
     """
-    Возвращает True, если a и b, несмотря на совпавший сигнал (фото/адрес),
-    похожи на ДВА РАЗНЫХ легитимных объявления одной квартиры (например,
-    риелтор перевыставил чужими фото, а реальный хозяин выложил своё по
-    более честной цене), а не на технический дубль одного и того же
-    объявления/перезалива.
+    s = (s or "").strip().lower()
+    return s or None
 
-    Эвристика: цена отличается заметно (> DUPLICATE_PRICE_TOLERANCE_PCT)
-    И продавец различается (owner_name или seller_type не совпадают).
-    Оба условия сразу — иначе слишком легко словить ложное срабатывание
-    (агентство просто скорректировало цену того же объявления).
+
+def build_cohort(target, pool, segments, citywide_median):
+    # Do not silently treat unknown finish as finished. For a target with
+    # unknown finish we allow finished+unknown only as a lower-confidence
+    # fallback, never rough+finished mixing. This filter now runs once, up
+    # front, against the WHOLE pool rather than an already room-filtered
+    # list: L2.5 below needs finish-matched rows of OTHER room counts, and
+    # deriving that from a same-room list would be empty by construction.
+    target_finish = target["_finish_bucket"]
+    if target_finish == "unknown":
+        finish_matched = [
+            r for r in pool
+            if r["_finish_bucket"] in {"finished", "unknown"} and not same_target_id(r, target)
+        ]
+    else:
+        finish_matched = [
+            r for r in pool
+            if r["_finish_bucket"] == target_finish and not same_target_id(r, target)
+        ]
+
+    comparable_rooms = [r for r in finish_matched if r["_rooms"] == target["_rooms"]]
+
+    # L1/2: same ЖК + rooms, UNIONED with same street + house_num + rooms.
+    # complex_key and street/house_num are two independent ways of pinning
+    # down the same physical building: complex_key is a curated tag that's
+    # often missing or inconsistently applied for older/non-branded
+    # buildings, while street+house_num is raw scraped text that's almost
+    # always present but never gets typo'd into pointing at a *different*
+    # real building by accident (unlike, say, a fuzzy name match would).
+    # Matching on either one still identifies the same building, so taking
+    # the union (deduped by id) recovers rows that would otherwise be
+    # split across two separate cohort levels, or lost entirely when a
+    # building's complex_key coverage is patchy.
+    #
+    # This replaces the old separate "L2b" level (address-only, sitting
+    # below L1/2): instead of falling back to a second, lower-confidence
+    # attempt only when complex_key matching came up short, address
+    # matches are folded in from the start. The confidence tier is still
+    # graded, not blanket-upgraded: if complex_key alone already clears
+    # MIN_COHORT_L12, the cohort is graded "1-2" (highest confidence);
+    # if it only clears the bar once address-matched rows are added in,
+    # it's graded "2b" (the same, slightly lower confidence the old
+    # address-only level used) so confidence_from_cohort doesn't treat a
+    # cohort that leans on raw scraped text as equally trustworthy as one
+    # anchored purely by the curated ЖК tag.
+    target_house = _norm_addr(target.get("house_num"))
+    target_street = _norm_addr(target.get("street"))
+    has_address = bool(target_house and target_street)
+
+    if comparable_rooms and (target["_complex_key"] or has_address):
+        by_complex = {
+            r["id"]: r
+            for r in comparable_rooms
+            if target["_complex_key"] and r["_complex_key"] == target["_complex_key"]
+        }
+        by_address = {}
+        if has_address:
+            by_address = {
+                r["id"]: r
+                for r in comparable_rooms
+                if _norm_addr(r.get("street")) == target_street
+                and _norm_addr(r.get("house_num")) == target_house
+            }
+        merged = {**by_address, **by_complex}
+        l12 = list(merged.values())
+        if len(l12) >= MIN_COHORT_L12:
+            level = "1-2" if len(by_complex) >= MIN_COHORT_L12 else "2b"
+            return level, l12
+
+    # L2.5: same ЖК, a DIFFERENT room count, price rescaled by the ratio of
+    # citywide medians between the target's room count and the
+    # comparable's room count. Exists so buildings with real room-mix
+    # diversity (many 1-bed, few 2-bed) get a precise, non-circular
+    # fallback before dropping down to street-level L3.
+    #
+    # Why this is non-circular where the L3/segment route isn't: L3
+    # matches by street + target_price_segment, and target_price_segment
+    # is itself derived from citywide price_m2 quantiles — i.e. it uses a
+    # price-derived label to help judge whether a price is good. L2.5
+    # never uses the target's own price to decide cohort membership;
+    # membership is purely structural (same ЖК, any room count other than
+    # the target's). Price only enters afterwards, to rescale comparables
+    # onto the target's room-count level via a CITYWIDE ratio — not a
+    # per-building one — so a building's own asking prices can't feed
+    # back into its own benchmark.
+    #
+    # These stay real listings, not a synthetic index: every field except
+    # _price_m2 is untouched, so robust_stats/estimate_floor_factor/etc.
+    # downstream consume an L2.5 cohort exactly like any other level.
+    if target["_complex_key"] and target["_rooms"] is not None:
+        target_room_median = citywide_median.get(target["_rooms"])
+        if target_room_median:
+            l25 = []
+            for r in finish_matched:
+                if r["_complex_key"] != target["_complex_key"]:
+                    continue
+                if r["_rooms"] is None or r["_rooms"] == target["_rooms"]:
+                    continue
+                if r["_price_m2"] is None:
+                    continue
+                other_room_median = citywide_median.get(r["_rooms"])
+                if not other_room_median:
+                    continue
+                scale = target_room_median / other_room_median
+                adjusted = dict(r)
+                adjusted["_price_m2"] = r["_price_m2"] * scale
+                adjusted["_rooms_source"] = r["_rooms"]
+                l25.append(adjusted)
+            if len(l25) >= MIN_COHORT_L25:
+                return "2.5", l25
+
+    if not comparable_rooms:
+        return "none", []
+
+    # L3: same street + rooms + price segment.
+    target_segment = target_price_segment(target, pool)
+    l3 = [
+        r for r in comparable_rooms
+        if r.get("street")
+        and r.get("street") == target.get("street")
+        and segments.get(r.get("id")) == target_segment
+    ]
+    if len(l3) >= MIN_COHORT_L3:
+        return "3", l3
+
+    # L4/L5: local radius.
+    if target["_lat"] is not None and target["_lon"] is not None:
+        l4 = [
+            r for r in comparable_rooms
+            if r["_lat"] is not None and r["_lon"] is not None
+            and haversine_km(
+                target["_lat"], target["_lon"],
+                r["_lat"], r["_lon"]
+            ) <= RADIUS_L4_KM
+        ]
+        if len(l4) >= MIN_COHORT_L4:
+            return "4", l4
+
+        median_for_rooms = citywide_median.get(target["_rooms"])
+        if median_for_rooms:
+            lo = median_for_rooms * (1 - PRICE_RANGE_L5_PCT)
+            hi = median_for_rooms * (1 + PRICE_RANGE_L5_PCT)
+            l5 = [
+                r for r in comparable_rooms
+                if r["_lat"] is not None and r["_lon"] is not None
+                and haversine_km(
+                    target["_lat"], target["_lon"],
+                    r["_lat"], r["_lon"]
+                ) <= RADIUS_L5_KM
+                and r["_price_m2"] is not None
+                and lo <= r["_price_m2"] <= hi
+            ]
+            if len(l5) >= MIN_COHORT_L5:
+                return "5", l5
+
+    # L6: same rooms across the city.
+    return "6", comparable_rooms
+
+
+def robust_stats(values):
+    values = [v for v in values if v is not None and math.isfinite(v)]
+    if not values:
+        return None, None, None
+
+    median = statistics.median(values)
+    abs_dev = [abs(v - median) for v in values]
+    mad = statistics.median(abs_dev)
+
+    # IQR is useful as a second stability diagnostic.
+    if len(values) >= 4:
+        qs = statistics.quantiles(values, n=4, method="inclusive")
+        iqr = qs[2] - qs[0]
+    else:
+        iqr = None
+
+    return median, mad, iqr
+
+
+def estimate_floor_factor(target, cohort, pool):
+    """Estimate extreme-floor effect locally where possible.
+
+    The methodology calls for a local structural effect. We therefore prefer
+    the selected cohort; only if it is too small do we fall back to the wider
+    same-rooms+finish baseline. If the cohort already contains only extreme
+    floors, no extra correction is applied: otherwise we would double-count
+    the floor effect.
     """
+    if not target["_is_extreme_floor"]:
+        return 1.0
+
+    def estimate(candidates):
+        extreme = [r["_price_m2"] for r in candidates if r["_is_extreme_floor"] and r["_price_m2"] is not None]
+        normal = [r["_price_m2"] for r in candidates if not r["_is_extreme_floor"] and r["_price_m2"] is not None]
+        if len(extreme) >= MIN_FLOOR_MODEL_N and len(normal) >= MIN_FLOOR_MODEL_N:
+            e, n = statistics.median(extreme), statistics.median(normal)
+            if n > 0:
+                raw = e / n
+                factor = 0.75 * raw + 0.25 * DEFAULT_EXTREME_FLOOR_FACTOR
+                return max(FLOOR_FACTOR_MIN, min(FLOOR_FACTOR_MAX, factor))
+        return None
+
+    local = estimate(cohort)
+    if local is not None:
+        return local
+
+    broader = [
+        r for r in pool
+        if r["_rooms"] == target["_rooms"]
+        and r["_finish_bucket"] == target["_finish_bucket"]
+    ]
+    broad = estimate(broader)
+    return broad if broad is not None else DEFAULT_EXTREME_FLOOR_FACTOR
+
+def data_warnings(target):
+    warnings = []
+
+    if target["_price_m2"] is None:
+        warnings.append("нет_price_m2")
+    if target["_rooms"] is None:
+        warnings.append("нет_rooms")
+    if to_float(target.get("square_m2")) is None:
+        warnings.append("нет_square_m2")
+    if target["_lat"] is None or target["_lon"] is None:
+        warnings.append("нет_координат")
+    if not target.get("finish_type"):
+        warnings.append("finish_type_неизвестен")
+
     try:
-        price_a = float(a.get("price") or 0)
-        price_b = float(b.get("price") or 0)
-    except (TypeError, ValueError):
-        return False
-    if price_a <= 0 or price_b <= 0:
-        return False
+        photos = int(float(target.get("photo_count") or 0))
+    except Exception:
+        photos = 0
+    if photos <= 0:
+        warnings.append("нет_фото")
+    elif photos < 5:
+        warnings.append("мало_фото")
 
-    price_diff = abs(price_a - price_b) / max(price_a, price_b)
-    if price_diff <= DUPLICATE_PRICE_TOLERANCE_PCT:
-        return False
+    if to_bool(target.get("requires_manual_review")):
+        warnings.append("есть_red_flag")
+    if to_bool(target.get("is_installment_segment")):
+        warnings.append("рассрочка")
+    if target["_seller_class"] == "agent":
+        warnings.append("риелтор_или_агентство")
+    elif target["_seller_class"] == "unknown":
+        warnings.append("продавец_не_определён")
 
-    seller_a = (
-        (a.get("owner_name") or "").strip().lower(),
-        (a.get("seller_type") or "").strip().lower(),
-    )
-    seller_b = (
-        (b.get("owner_name") or "").strip().lower(),
-        (b.get("seller_type") or "").strip().lower(),
-    )
-    return seller_a != seller_b
+    return warnings
 
 
-def dedupe_by_photo_hash(rows):
+def quality_evidence_score(target):
     """
-    Одна и та же квартира может быть выставлена несколькими
-    объявлениями (перевыставление разными риелторами/агентствами).
-    photo_set_hash — сигнал "это тот же набор фото", то есть
-    физически та же квартира. Пустой хэш ничего не значит (не с чем
-    сравнивать) — такие записи не трогаем.
+    Не пытается угадать "красивый ремонт" из воздуха.
+    Это именно score наличия наблюдаемых доказательств качества,
+    а не денежная поправка к цене.
 
-    Из группы с одинаковым непустым хэшем оставляем САМУЮ СВЕЖУЮ (по
-    scraped_at/added_at, см. freshest_first) — КРОМЕ случаев, когда
-    запись похожа не на технический дубль, а на отдельное легитимное
-    объявление той же квартиры от другого продавца по другой цене
-    (см. _looks_like_different_listing) — такие записи оставляем ОБЕ и
-    помечаем warning'ом "possible_duplicate_different_seller", а не
-    удаляем молча.
+    Сильные сигналы:
+        finish_type,
+        явно заявленные premium markers,
+        меблировка,
+        дополнительные удобства,
+        фотографии.
     """
-    groups = {}
-    order = []
-    no_hash = []
-    for row in rows:
-        h = (row.get("photo_set_hash") or "").strip()
-        if not h:
-            no_hash.append(row)
-            continue
-        if h not in groups:
-            order.append(h)
-            groups[h] = []
-        groups[h].append(row)
+    score = 40.0
 
-    kept, dropped = list(no_hash), []
-    for h in order:
-        group = freshest_first(groups[h])
-        survivors = [group[0]]
-        for candidate in group[1:]:
-            if any(_looks_like_different_listing(candidate, s) for s in survivors):
-                flagged = dict(candidate)
-                flagged["baseline_warning"] = "possible_duplicate_different_seller"
-                survivors.append(flagged)
-            else:
-                dropped.append((candidate, "duplicate_photo_set_hash"))
-        kept.extend(survivors)
-    return kept, dropped
+    finish = (target.get("finish_type") or "").strip().lower()
+    if finish == "чистовая":
+        score += 20
+    elif finish == "предчистовая":
+        score += 10
+    elif finish == "черновая":
+        score -= 15
+
+    premium = parse_jsonish(target.get("premium_markers"), [])
+    if isinstance(premium, list):
+        # Was a flat +5 per listed marker (capped at 15, i.e. hit the
+        # ceiling at exactly 3 items regardless of content) — a pure
+        # word-count reward that let a listing rack up full marks just by
+        # naming three near-synonyms for the same one renovation
+        # ("евроремонт", "современный ремонт", "качественный ремонт").
+        # Fix has two parts: (1) case/whitespace-normalize and dedupe so
+        # literal repeats can't inflate the count at all, and (2) score
+        # the distinct count on a sub-linear (log) curve instead of a
+        # flat per-item rate, so the first distinct marker carries most
+        # of the weight and each additional one adds progressively less
+        # — rewarding genuine breadth of evidence without letting a
+        # longer, more repetitive listing simply out-count a shorter,
+        # equally strong one.
+        distinct_markers = {
+            re.sub(r"\s+", " ", str(m).strip().lower())
+            for m in premium
+            if str(m).strip()
+        }
+        score += round(min(15.0, 6.5 * math.log1p(len(distinct_markers))), 1)
+    elif premium:
+        score += 8
+
+    furniture = (target.get("furniture") or "").strip().lower()
+    if furniture and furniture not in ("нет", "—", "-"):
+        score += 8
+    if furniture in ("полностью", "полностью меблирована", "полностью меблирован"):
+        score += 5
+
+    extra = parse_jsonish(target.get("extra_attributes"), {})
+    if isinstance(extra, dict):
+        for key in ("parking", "security", "balcony", "view"):
+            value = extra.get(key)
+            if value not in (None, "", False, "не указано", "нет"):
+                score += 2
+
+    try:
+        photos = int(float(target.get("photo_count") or 0))
+    except Exception:
+        photos = 0
+    if photos >= 10:
+        score += 10
+    elif photos >= 5:
+        score += 6
+    elif photos >= 1:
+        score += 2
+    else:
+        score -= 10
+
+    # Red flags do not create an automatic "bad quality" price discount;
+    # they create a manual-review requirement.
+    if to_bool(target.get("requires_manual_review")):
+        score -= 15
+
+    return round(max(0.0, min(100.0, score)), 1)
 
 
-# ============================== ДЕДУП ПО АДРЕСУ+ПЛАНИРОВКЕ ==============================
+def cohort_homogeneity_factor(level, dispersion):
+    """Downweight confidence when the cohort spans too wide a price range
+    for its level to be believed at face value — e.g. a radius-based
+    cohort that's quietly straddling two different building qualities.
 
-
-def dedupe_by_address_layout(rows):
+    Thresholds are calibrated per level group, not globally: precise
+    levels (same complex/building/street+segment) run tight in practice
+    (median IQR/median ~0.11-0.12, p90 ~0.15-0.20 on the current baseline),
+    so the same dispersion that's unremarkable for a radius-based L4/L5
+    cohort (median ~0.21, p90 ~0.31) would already be an outlier at L1-3.
     """
-    Вторая, более грубая линия дедупа — страховка на случай, когда
-    photo_set_hash не срабатывает (агентство перезалило другой набор
-    фото, поменяло порядок, добавило/убрало одну фотографию — хэш
-    набора меняется, хотя квартира та же физически).
+    if dispersion is None:
+        return 1.0
+    if level in ("1-2", "2b", "3"):
+        moderate, severe = 0.22, 0.32
+    elif level == "2.5":
+        # Same tight physical locality as L1-3, but the rescale step adds
+        # its own noise (a citywide room-count ratio isn't guaranteed to
+        # hold exactly for one specific building), so give it a little
+        # more room before treating dispersion as suspicious.
+        moderate, severe = 0.26, 0.38
+    else:
+        moderate, severe = 0.33, 0.48
+    if dispersion >= severe:
+        return 0.55
+    if dispersion >= moderate:
+        return 0.8
+    return 1.0
 
-    Ключ: (улица, дом, этаж, комнатность) + площадь В ПРЕДЕЛАХ ДОПУСКА
-    SQUARE_DEDUP_TOLERANCE_M2. Совпадение по всем сразу — сильный
-    сигнал "это одна и та же квартира", не просто "похожая". Площадь
-    сравниваем с допуском, а не строгим округлением до целого — иначе
-    пары вроде 55.4 и 55.6 (одна и та же квартира, просто разное
-    округление у разных риелторов) уедут в разные "корзины" из-за
-    границы округления и дедуп их не поймает. Внутри группы
-    (улица+дом+этаж+комнаты) площади сортируются и склеиваются в один
-    кластер, если сосед по сортировке отличается не больше чем на
-    допуск (транзитивная склейка цепочкой, не только попарно).
 
-    ОГРАНИЧЕНИЕ (осознанное, не пытаемся его прятать): если в доме
-    типовая застройка и на одном этаже реально существуют РАЗНЫЕ
-    квартиры с одинаковой планировкой (например, зеркальные подъезды),
-    этот фильтр их склеит как дубль. Это редкий случай — нужно точное
-    совпадение улицы, дома, этажа, комнатности И площади с точностью
-    до метра сразу — но не нулевой. Поэтому, как и везде в пайплайне,
-    ничего не удаляется молча: причина попадает в dropped.csv с
-    указанием конкретного ключа, чтобы можно было глазами проверить и
-    при необходимости ослабить фильтр (например, дополнительно
-    требовать совпадения complex_id).
+def confidence_from_cohort(level, size, dispersion=None):
+    # Locality quality dominates. A large city-wide cohort is still weaker
+    # than a small same-complex cohort.
+    size_factor = min(1.0, math.log1p(max(size, 0)) / math.log1p(30))
+    level_factor = {
+        "1-2": 1.00,
+        "2b": 0.95,
+        # Below 2b (exact building) but above 3 (mere street match): L2.5
+        # keeps the strong same-ЖК locality signal, but the cross-room
+        # rescale is an extra inferential step L1-3 don't need, so it
+        # doesn't get to outrank a direct, unadjusted same-room street
+        # match.
+        "2.5": 0.80,
+        "3": 0.90,
+        "4": 0.78,
+        "5": 0.62,
+        "6": 0.42,
+        "none": 0.0,
+    }.get(level, 0.25)
 
-    Не трогает записи с пустой улицей ИЛИ пустым номером дома — не с
-    чем сравнивать, оставляем как есть.
+    base = 0.35 * size_factor + 0.65 * level_factor
+    base *= cohort_homogeneity_factor(level, dispersion)
+    return round(max(0.0, min(1.0, base)), 3)
 
-    Запускать ПОСЛЕ dedupe_by_photo_hash: тот дедуп надёжнее (по сути
-    точное совпадение), этот — более грубая эвристика поверх того, что
-    уже прошло первую линию.
+
+def quality_confidence(target):
+    warnings = data_warnings(target)
+    # Missing core fields are much more damaging than being an agent.
+    core = {"нет_price_m2", "нет_rooms"}
+    missing_core = len(core.intersection(warnings))
+    confidence_warnings = [w for w in warnings if w not in {"риелтор_или_агентство", "продавец_не_определён"}]
+    score = 1.0 - 0.10 * len(confidence_warnings) - 0.25 * missing_core
+    return max(0.0, min(1.0, score))
+
+
+def price_quality_score(diff_pct, quality_score, benchmark_confidence, data_confidence):
     """
-    def base_key(row):
-        street = (row.get("street") or "").strip().lower()
-        house = (row.get("house_num") or "").strip().lower()
-        floor = (row.get("floor") or "").strip()
-        rooms = (row.get("rooms") or "").strip()
-        return (street, house, floor, rooms)
+    Composite score for ranking, not a probability of a sale.
 
-    groups = {}
-    order = []
-    no_key = []
-    for row in rows:
-        street = (row.get("street") or "").strip()
-        house = (row.get("house_num") or "").strip()
-        if not street or not house:
-            no_key.append(row)
-            continue
-        k = base_key(row)
-        if k not in groups:
-            order.append(k)
-            groups[k] = []
-        groups[k].append(row)
+    65% = market-relative price advantage.
+    25% = observable quality evidence.
+    10% = confidence in the evidence/benchmark.
 
-    kept, dropped = list(no_key), []
-    for k in order:
-        group = groups[k]
+    Quality is intentionally not allowed to overwhelm market price: a model
+    should not call an expensive apartment a bargain merely because its text
+    says "designer renovation".
+    """
+    if diff_pct is None:
+        return None
+    value = max(0.0, min(100.0, 50.0 + 500.0 * diff_pct))
+    confidence = 100.0 * (0.72 * benchmark_confidence + 0.28 * data_confidence)
+    score = 0.65 * value + 0.25 * quality_score + 0.10 * confidence
+    return round(max(0.0, min(100.0, score)), 1)
 
-        # без валидной площади сравнивать не с чем — не трогаем
-        with_square = [(r, to_float(r.get("square_m2"))) for r in group]
-        no_square = [r for r, sq in with_square if sq is None]
-        kept.extend(no_square)
 
-        sized = sorted(((r, sq) for r, sq in with_square if sq is not None), key=lambda t: t[1])
+def price_quality_label(diff_pct, quality_score, warnings):
+    if diff_pct is None:
+        return "нет оценки"
+    if diff_pct >= 0.10 and quality_score >= 55:
+        label = "сильное цена/качество"
+    elif diff_pct >= 0.05:
+        label = "хорошее цена/качество"
+    elif diff_pct <= -0.10:
+        label = "слабое цена/качество"
+    else:
+        label = "обычное цена/качество"
 
-        # цепочная кластеризация по допуску: разбиваем отсортированный
-        # список там, где разрыв между соседями больше допуска
-        clusters = []
-        current = []
-        prev_sq = None
-        for r, sq in sized:
-            if current and (sq - prev_sq) > SQUARE_DEDUP_TOLERANCE_M2:
-                clusters.append(current)
-                current = []
-            current.append(r)
-            prev_sq = sq
-        if current:
-            clusters.append(current)
+    if "нет_фото" in warnings or "мало_фото" in warnings:
+        label += "; качество не подтверждено фото"
+    if "finish_type_неизвестен" in warnings:
+        label += "; состояние не подтверждено текстом"
+    return label
 
-        street, house, floor, rooms = k
-        for cluster in clusters:
-            if len(cluster) == 1:
-                kept.append(cluster[0])
-                continue
-            cluster_sorted = freshest_first(cluster)
-            survivors = [cluster_sorted[0]]
-            reason = (
-                f"duplicate_address_layout (street={street!r}, house={house!r}, "
-                f"floor={floor!r}, rooms={rooms!r}, square within "
-                f"{SQUARE_DEDUP_TOLERANCE_M2}m2)"
+
+def verdict_from_diff(diff_pct, benchmark_confidence, target, warnings):
+    if diff_pct is None:
+        return "НЕДОСТАТОЧНО ДАННЫХ", "нет устойчивой рыночной базы"
+
+    # Severe red flags are not priced automatically.
+    if to_bool(target.get("requires_manual_review")):
+        return "РУЧНАЯ ПРОВЕРКА", "есть red_flag: ценовую скидку нельзя честно оценить автоматически"
+
+    if benchmark_confidence >= 0.75:
+        find_t = FIND_THRESHOLD_HIGH_CONF
+        over_t = OVERPRICE_THRESHOLD_HIGH_CONF
+    elif benchmark_confidence >= 0.55:
+        find_t = FIND_THRESHOLD_MED_CONF
+        over_t = OVERPRICE_THRESHOLD_MED_CONF
+    else:
+        find_t = FIND_THRESHOLD_LOW_CONF
+        over_t = OVERPRICE_THRESHOLD_LOW_CONF
+
+    if diff_pct >= find_t:
+        if diff_pct >= SUSPICIOUS_DIFF_THRESHOLD and (
+            benchmark_confidence < SUSPICIOUS_DIFF_CONF_FLOOR
+            or is_thin_description(warnings)
+        ):
+            return (
+                "ТРЕБУЕТ ПРОВЕРКИ",
+                f"аномально большая скидка ({diff_pct:.1%}) при низкой уверенности "
+                f"базы или скудном описании — вероятнее ошибка когорты/скрытый "
+                f"дефект, чем настоящая находка",
             )
-            for candidate in cluster_sorted[1:]:
-                if any(_looks_like_different_listing(candidate, s) for s in survivors):
-                    flagged = dict(candidate)
-                    flagged["baseline_warning"] = "possible_duplicate_different_seller"
-                    survivors.append(flagged)
-                else:
-                    dropped.append((candidate, reason))
-            kept.extend(survivors)
-
-    return kept, dropped
+        return "НАХОДКА", f"цена ниже скорректированной базы на {diff_pct:.1%}"
+    if diff_pct <= over_t:
+        return "ПЕРЕОЦЕНЕНА", f"цена выше скорректированной базы на {abs(diff_pct):.1%}"
+    return "СПРАВЕДЛИВАЯ", f"цена близка к скорректированной базе ({diff_pct:+.1%})"
 
 
-# ============================== ИНКРЕМЕНТАЛЬНОЕ ПОПОЛНЕНИЕ ==============================
-
-
-def load_existing_baseline(path):
+def score_row(target, pool, segments, citywide_median, soft_target=True):
     """
-    Читает уже существующий baseline и строит индексы для дедупа новых
-    кандидатов против него (не только внутри новой пачки, как раньше).
-
-    Возвращает (rows, fieldnames, existing_ids, existing_photo_hashes,
-    address_layout_index), где address_layout_index — это
-    {(street, house, floor, rooms): [square_m2, ...]} по уже принятым
-    записям, чтобы новый кандидат с площадью в пределах
-    SQUARE_DEDUP_TOLERANCE_M2 от уже существующей тоже считался дублем.
+    score_row сохраняется module-level для совместимости с прежним
+    orchestrator.py и внешними скриптами.
     """
-    with open(path, "r", encoding="utf-8-sig", newline="") as f:
-        reader = csv.DictReader(f)
-        fieldnames = reader.fieldnames or []
-        rows = list(reader)
+    target = enrich(target)
 
-    existing_ids = {r.get("id") for r in rows if r.get("id")}
-    existing_photo_hashes = {
-        (r.get("photo_set_hash") or "").strip()
-        for r in rows
-        if (r.get("photo_set_hash") or "").strip()
+    warnings = data_warnings(target)
+    seller_cls, seller_conf, seller_reason = (
+        target["_seller_class"],
+        target["_seller_confidence"],
+        target["_seller_reason"],
+    )
+
+    if target["_price_m2"] is None:
+        return {
+            "status": "insufficient_numeric_data",
+            "verdict": "НЕДОСТАТОЧНО ДАННЫХ",
+            "verdict_reason": "нет корректной цены и/или площади для price/m²",
+            "seller_class": seller_cls,
+            "seller_confidence": seller_conf,
+            "seller_reason": seller_reason,
+            "data_warnings": ";".join(warnings),
+            "quality_evidence_score": quality_evidence_score(target),
+            "data_confidence": round(quality_confidence(target), 3),
+        }
+
+    # Baseline exclusions are only relevant when scoring a baseline row in
+    # offline mode. Incoming rows remain scoreable.
+    if not soft_target and target["_excluded_baseline"]:
+        reason = (
+            "excluded_manual_review"
+            if to_bool(target.get("requires_manual_review"))
+            else "excluded_installment"
+        )
+        return {
+            "status": reason,
+            "verdict": "РУЧНАЯ ПРОВЕРКА",
+            "verdict_reason": "строка не является пригодной для benchmark-пула",
+            "seller_class": seller_cls,
+            "seller_confidence": seller_conf,
+            "seller_reason": seller_reason,
+            "data_warnings": ";".join(warnings),
+            "quality_evidence_score": quality_evidence_score(target),
+            "data_confidence": 0.0,
+        }
+
+    # Finish matching happens inside build_cohort, not here. This pool only
+    # excludes self and baseline-ineligible rows. (Previously this function
+    # ALSO hard-filtered by finish_bucket before calling build_cohort, which
+    # silently defeated the finished+unknown leniency build_cohort already
+    # implements for targets with unknown finish — that branch could never
+    # fire because non-matching finishes had already been removed one level
+    # up. Rough/finished are still never mixed; that filtering now happens
+    # once, correctly, inside build_cohort itself.)
+    cohort_pool = [
+        r for r in pool
+        if not same_target_id(r, target)
+        and not r.get("_excluded_baseline")
+    ]
+
+    level, cohort = build_cohort(
+        target, cohort_pool, segments, citywide_median
+    )
+
+    if not cohort:
+        return {
+            "status": "no_comparables",
+            "verdict": "НЕДОСТАТОЧНО ДАННЫХ",
+            "verdict_reason": "нет сопоставимых объявлений в эталоне",
+            "finish_bucket": target["_finish_bucket"],
+            "cohort_level": level,
+            "cohort_size": 0,
+            "confidence_weight": 0.0,
+            "benchmark_confidence": 0.0,
+            "seller_class": seller_cls,
+            "seller_confidence": seller_conf,
+            "seller_reason": seller_reason,
+            "data_warnings": ";".join(warnings),
+            "quality_evidence_score": quality_evidence_score(target),
+            "data_confidence": round(quality_confidence(target), 3),
+        }
+
+    prices = [r["_price_m2"] for r in cohort if r["_price_m2"] is not None]
+    base_price_m2, mad, iqr = robust_stats(prices)
+    if base_price_m2 is None:
+        return {
+            "status": "no_comparables",
+            "verdict": "НЕДОСТАТОЧНО ДАННЫХ",
+            "verdict_reason": "в когорте нет корректных price/m²",
+            "finish_bucket": target["_finish_bucket"],
+            "cohort_level": level,
+            "cohort_size": len(cohort),
+            "confidence_weight": 0.0,
+            "benchmark_confidence": 0.0,
+            "seller_class": seller_cls,
+            "seller_confidence": seller_conf,
+            "seller_reason": seller_reason,
+            "data_warnings": ";".join(warnings),
+            "quality_evidence_score": quality_evidence_score(target),
+            "data_confidence": round(quality_confidence(target), 3),
+        }
+
+    floor_factor = estimate_floor_factor(target, cohort, pool)
+    base_corrected = base_price_m2 * floor_factor
+    diff_pct = (
+        (base_corrected - target["_price_m2"]) / base_corrected
+        if base_corrected
+        else None
+    )
+
+    if mad and mad > 0:
+        robust_z = 0.6745 * (target["_price_m2"] - base_price_m2) / mad
+        robust_z = max(-10.0, min(10.0, robust_z))
+    else:
+        robust_z = None
+
+    dispersion = (iqr / base_price_m2) if (iqr is not None and base_price_m2) else None
+    benchmark_conf = confidence_from_cohort(level, len(cohort), dispersion)
+    data_conf = quality_confidence(target)
+    combined_conf = round(0.72 * benchmark_conf + 0.28 * data_conf, 3)
+
+    verdict, verdict_reason = verdict_from_diff(
+        diff_pct, combined_conf, target, warnings
+    )
+
+    # "value_score" is intentionally monotonic in diff_pct, but compressed
+    # so a 40% apparent discount doesn't automatically become 100/100.
+    if diff_pct is None:
+        value_score = None
+    else:
+        value_score = 50 + 500 * diff_pct
+        value_score = max(0.0, min(100.0, value_score))
+
+    pq_score = price_quality_score(
+        diff_pct,
+        quality_evidence_score(target),
+        benchmark_conf,
+        data_conf,
+    )
+    pq_label = price_quality_label(
+        diff_pct,
+        quality_evidence_score(target),
+        warnings,
+    )
+
+    return {
+        "status": "scored",
+        "verdict": verdict,
+        "verdict_reason": verdict_reason,
+        "finish_bucket": target["_finish_bucket"],
+        "price_segment": target_price_segment(target, pool),
+        "cohort_level": level,
+        "cohort_size": len(cohort),
+        "cohort_dispersion": round(dispersion, 4) if dispersion is not None else None,
+        "confidence_weight": round(min(1.0, len(cohort) / N_MIN), 2),
+        "benchmark_confidence": benchmark_conf,
+        "is_extreme_floor": target["_is_extreme_floor"],
+        "floor_adjustment_factor": round(floor_factor, 4),
+        "base_price_m2": round(base_price_m2, 1),
+        "base_price_m2_corrected": round(base_corrected, 1),
+        "diff_pct": round(diff_pct, 4) if diff_pct is not None else None,
+        "robust_z": round(robust_z, 2) if robust_z is not None else None,
+        "value_score": round(value_score, 1) if value_score is not None else None,
+        "quality_evidence_score": quality_evidence_score(target),
+        "price_quality_score": pq_score,
+        "price_quality_label": pq_label,
+        "data_confidence": data_conf,
+        "seller_class": seller_cls,
+        "seller_confidence": seller_conf,
+        "seller_reason": seller_reason,
+        "data_warnings": ";".join(warnings),
     }
 
-    address_layout_index = {}
-    for r in rows:
-        street = (r.get("street") or "").strip().lower()
-        house = (r.get("house_num") or "").strip().lower()
-        floor = (r.get("floor") or "").strip()
-        rooms = (r.get("rooms") or "").strip()
-        if not street or not house:
-            continue
-        sq = to_float(r.get("square_m2"))
-        if sq is None:
-            continue
-        address_layout_index.setdefault((street, house, floor, rooms), []).append(sq)
 
-    return rows, fieldnames, existing_ids, existing_photo_hashes, address_layout_index
-
-
-def split_already_known(rows, existing_ids):
-    """Новые id (кандидаты) vs id, уже присутствующие в baseline (не трогаем)."""
-    new_rows, known = [], []
+def write_output(path, rows, results):
+    base_fields = []
     for row in rows:
-        if row.get("id") in existing_ids:
-            known.append(row)
-        else:
-            new_rows.append(row)
-    return new_rows, known
+        for k in row.keys():
+            if not k.startswith("_") and k not in base_fields:
+                base_fields.append(k)
 
+    fields = base_fields + [
+        x for x in OUTPUT_EXTRA_FIELDNAMES if x not in base_fields
+    ]
 
-def dedupe_against_existing_photo(rows, existing_photo_hashes):
-    """Кандидат отсеивается, если его photo_set_hash уже есть в baseline —
-    та же физическая квартира уже сохранена (под другим/тем же id)."""
-    kept, dropped = [], []
-    for row in rows:
-        h = (row.get("photo_set_hash") or "").strip()
-        if h and h in existing_photo_hashes:
-            dropped.append((row, f"already_in_baseline_photo_set_hash ({h[:12]}...)"))
-        else:
-            kept.append(row)
-    return kept, dropped
-
-
-def dedupe_against_existing_address(rows, address_layout_index, tolerance=SQUARE_DEDUP_TOLERANCE_M2):
-    """Та же идея, что и dedupe_against_existing_photo, но по ключу
-    (улица, дом, этаж, комнатность) + площадь в пределах допуска —
-    страховка на случай, если фото перезалиты другим набором."""
-    kept, dropped = [], []
-    for row in rows:
-        street = (row.get("street") or "").strip().lower()
-        house = (row.get("house_num") or "").strip().lower()
-        floor = (row.get("floor") or "").strip()
-        rooms = (row.get("rooms") or "").strip()
-        sq = to_float(row.get("square_m2"))
-        key = (street, house, floor, rooms)
-        existing_squares = address_layout_index.get(key) if street and house else None
-
-        if existing_squares and sq is not None and any(
-            abs(sq - existing_sq) <= tolerance for existing_sq in existing_squares
-        ):
-            dropped.append((
-                row,
-                f"already_in_baseline_address_layout (street={street!r}, house={house!r}, "
-                f"floor={floor!r}, rooms={rooms!r}, square within {tolerance}m2)",
-            ))
-        else:
-            kept.append(row)
-    return kept, dropped
-
-
-def apply_iqr_filter_with_reference(new_rows, reference_rows, value_fn, field_label, group_key_fn=rooms_group_key):
-    """
-    Тот же метод Тьюки, что и apply_iqr_filter, но квартили считаются по
-    ОБЪЕДИНЕНИЮ reference_rows (уже принятые в baseline, статистически
-    надёжнее — их много) и new_rows (новая пачка) внутри группы rooms.
-    Фильтруются (kept/dropped) при этом только new_rows — reference_rows
-    уже в baseline и не пересматриваются.
-    """
-    ref_by_group = {}
-    for row in reference_rows:
-        ref_by_group.setdefault(group_key_fn(row), []).append(row)
-    new_by_group = {}
-    for row in new_rows:
-        new_by_group.setdefault(group_key_fn(row), []).append(row)
-
-    kept, dropped = [], []
-    for group_key, group_new_rows in new_by_group.items():
-        combined_values = sorted(
-            v for v in (
-                value_fn(r) for r in ref_by_group.get(group_key, []) + group_new_rows
-            ) if v is not None
-        )
-        if len(combined_values) < IQR_MIN_GROUP_SIZE:
-            kept.extend(group_new_rows)  # мало данных — не трогаем
-            continue
-
-        q1 = statistics.quantiles(combined_values, n=4)[0]
-        q3 = statistics.quantiles(combined_values, n=4)[2]
-        iqr = q3 - q1
-        lower = q1 - IQR_MULTIPLIER * iqr
-        upper = q3 + IQR_MULTIPLIER * iqr
-
-        for row in group_new_rows:
-            v = value_fn(row)
-            if v is not None and (v < lower or v > upper):
-                dropped.append((
-                    row,
-                    f"{field_label}_outlier_iqr (group={group_key}, {v:.0f} вне [{lower:.0f}, {upper:.0f}], "
-                    "границы посчитаны по baseline+новая пачка)",
-                ))
-            else:
-                kept.append(row)
-    return kept, dropped
-
-
-def sanity_filter_with_reference(rows, reference_rows, value_fn, hard_min, hard_max, field_label):
-    print(f"   {field_label}: жёсткие границы [{hard_min}, {hard_max}]")
-    after_hard, dropped_hard = apply_hard_bounds(rows, value_fn, hard_min, hard_max, field_label)
-    print(f"   {field_label} жёсткий фильтр: прошло {len(after_hard)}, отсеяно {len(dropped_hard)}")
-
-    after_iqr, dropped_iqr = apply_iqr_filter_with_reference(after_hard, reference_rows, value_fn, field_label)
-    print(f"   {field_label} IQR (группы rooms, baseline+новая пачка, min размер {IQR_MIN_GROUP_SIZE}): "
-          f"прошло {len(after_iqr)}, отсеяно {len(dropped_iqr)}")
-
-    dropped = dropped_hard + dropped_iqr
-    return after_iqr, dropped
-
-
-def append_rows_csv(path, rows, fieldnames):
-    """Дописывает строки в конец существующего CSV БЕЗ шапки и без
-    переписывания уже сохранённых строк."""
-    with open(path, "a", encoding="utf-8-sig", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
-        for row in rows:
-            writer.writerow({k: row.get(k, "") for k in fieldnames})
-
-
-# ============================== ЦЕЛОСТНОСТЬ: ЭТАЖ ==============================
-
-
-def floor_integrity_filter(rows):
-    """floor > floor_total — ошибка карточки/парсинга, а не квартира на
-    крайнем этаже. Если хоть одно из полей не заполнено — не судим,
-    оставляем (не наша забота тут восстанавливать данные)."""
-    kept, dropped = [], []
-    for row in rows:
-        floor = to_float(row.get("floor"))
-        floor_total = to_float(row.get("floor_total"))
-        if floor is not None and floor_total is not None and floor > floor_total:
-            dropped.append((
-                row,
-                f"floor_gt_floor_total (floor={floor:.0f} > floor_total={floor_total:.0f})",
-            ))
-            continue
-        kept.append(row)
-    return kept, dropped
-
-
-# ============================== ЖЁСТКИЙ ФИЛЬТР + IQR (ОБЩАЯ ЛОГИКА) ==============================
-
-
-def apply_hard_bounds(rows, value_fn, min_val, max_val, field_label):
-    kept, dropped = [], []
-    for row in rows:
-        v = value_fn(row)
-        if v is None:
-            dropped.append((row, f"no_valid_{field_label}_for_sanity_check"))
-            continue
-        if v < min_val:
-            dropped.append((row, f"{field_label}_too_low_hard ({v:.0f} < {min_val})"))
-            continue
-        if v > max_val:
-            dropped.append((row, f"{field_label}_too_high_hard ({v:.0f} > {max_val})"))
-            continue
-        kept.append(row)
-    return kept, dropped
-
-
-def apply_iqr_filter(rows, value_fn, field_label, group_key_fn=rooms_group_key):
-    """
-    IQR-выброс отдельно по группам (по умолчанию — rooms). Группы
-    меньше IQR_MIN_GROUP_SIZE пропускаются нетронутыми (недостаточно
-    данных для честной статистики).
-    """
-    by_group = {}
-    for row in rows:
-        by_group.setdefault(group_key_fn(row), []).append(row)
-
-    kept, dropped = [], []
-    for group_key, group_rows in by_group.items():
-        values = sorted(v for v in (value_fn(r) for r in group_rows) if v is not None)
-        if len(values) < IQR_MIN_GROUP_SIZE:
-            kept.extend(group_rows)  # мало данных — не трогаем
-            continue
-
-        q1 = statistics.quantiles(values, n=4)[0]
-        q3 = statistics.quantiles(values, n=4)[2]
-        iqr = q3 - q1
-        lower = q1 - IQR_MULTIPLIER * iqr
-        upper = q3 + IQR_MULTIPLIER * iqr
-
-        for row in group_rows:
-            v = value_fn(row)
-            if v is not None and (v < lower or v > upper):
-                dropped.append((
-                    row,
-                    f"{field_label}_outlier_iqr (group={group_key}, {v:.0f} вне [{lower:.0f}, {upper:.0f}])",
-                ))
-            else:
-                kept.append(row)
-
-    return kept, dropped
-
-
-def sanity_filter(rows, value_fn, hard_min, hard_max, field_label):
-    print(f"   {field_label}: жёсткие границы [{hard_min}, {hard_max}]")
-    after_hard, dropped_hard = apply_hard_bounds(rows, value_fn, hard_min, hard_max, field_label)
-    print(f"   {field_label} жёсткий фильтр: прошло {len(after_hard)}, отсеяно {len(dropped_hard)}")
-
-    after_iqr, dropped_iqr = apply_iqr_filter(after_hard, value_fn, field_label)
-    print(f"   {field_label} IQR (группы rooms, min размер {IQR_MIN_GROUP_SIZE}): "
-          f"прошло {len(after_iqr)}, отсеяно {len(dropped_iqr)}")
-
-    dropped = dropped_hard + dropped_iqr
-    return after_iqr, dropped
-
-
-# ============================== ВЫВОД ==============================
-
-
-def write_baseline(path, rows_with_results, base_fieldnames):
-    fieldnames = base_fieldnames + OUTPUT_EXTRA_FIELDNAMES
     with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
         writer.writeheader()
-        for row, result in rows_with_results:
-            out_row = dict(row)
-            out_row["finish_type"] = result.get("finish_type") or ""
-            out_row["red_flags"] = json.dumps(result.get("red_flags") or [], ensure_ascii=False)
-            out_row["premium_markers"] = json.dumps(result.get("premium_markers") or [], ensure_ascii=False)
-            out_row["extra_attributes"] = json.dumps(result.get("extra_attributes") or {}, ensure_ascii=False)
-            out_row["requires_manual_review"] = requires_manual_review(result) if not result.get("_skipped_error") else False
-            out_row["llm_skipped_error"] = bool(result.get("_skipped_error"))
-            writer.writerow(out_row)
+        for row, result in zip(rows, results):
+            out = {k: v for k, v in row.items() if not k.startswith("_")}
+            out.update(result)
+            writer.writerow(out)
 
 
-def write_dropped(path, dropped_triples, base_fieldnames):
-    fieldnames = base_fieldnames + DROPPED_EXTRA_FIELDNAMES
-    with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        for row, stage, reason in dropped_triples:
-            out_row = {k: v for k, v in row.items() if k in base_fieldnames}
-            out_row["drop_stage"] = stage
-            out_row["drop_reason"] = reason
-            writer.writerow(out_row)
+def prepare_baseline(path):
+    rows = [enrich(r) for r in load_rows(path)]
+    usable = [r for r in rows if not r["_excluded_baseline"]]
+    return rows, usable
 
 
-# ============================== MAIN ==============================
+def run(input_path, output_path, baseline_path=None, soft_target=True):
+    rows = [enrich(r) for r in load_rows(input_path)]
+    print(f"Загружено записей: {len(rows)}")
 
-
-async def run(input_path, output_path, dropped_path, cache_path, concurrency, skip_llm=False):
-    incremental = os.path.exists(output_path)
-
-    existing_ids = set()
-    existing_photo_hashes = set()
-    address_layout_index = {}
-    reference_rows_for_iqr = []
-    existing_fieldnames = None
-
-    if incremental:
-        existing_rows, existing_fieldnames, existing_ids, existing_photo_hashes, address_layout_index = \
-            load_existing_baseline(output_path)
-        reference_rows_for_iqr = existing_rows
-        print(f"📚 {output_path} уже существует ({len(existing_rows)} записей) — режим пополнения.")
-    else:
-        print(f"🆕 {output_path} не найден — собираю эталон с нуля.")
-
-    rows = load_rows(input_path)
-    print(f"Загружено сырых записей из {input_path}: {len(rows)}")
-    all_dropped = []
-
-    if incremental:
-        rows, already_known = split_already_known(rows, existing_ids)
-        print(f"Уже есть в baseline (по id, не трогаем): {len(already_known)}; новых кандидатов: {len(rows)}")
-
-    # --- Stage 1 (переиспользуем как есть) ---
-    stage1_kept, stage1_dropped_raw = stage1_clean_rows(rows)
-    print(f"Stage 1: прошло {len(stage1_kept)}, отсеяно {len(stage1_dropped_raw)}")
-    all_dropped += [(r, "stage1", r.get("drop_reason")) for r in stage1_dropped_raw]
-
-    photo_pool = stage1_kept
-    if incremental:
-        photo_pool, existing_photo_dropped = dedupe_against_existing_photo(photo_pool, existing_photo_hashes)
-        print(f"Уже есть в baseline по photo_set_hash: отсеяно {len(existing_photo_dropped)}")
-        all_dropped += [(r, "photo_dedup_existing", reason) for r, reason in existing_photo_dropped]
-
-    # --- Дедуп по фото (внутри новой пачки) ---
-    photo_kept, photo_dropped = dedupe_by_photo_hash(photo_pool)
-    print(f"Дедуп по photo_set_hash (внутри пачки): прошло {len(photo_kept)}, отсеяно {len(photo_dropped)}")
-    all_dropped += [(r, "photo_dedup", reason) for r, reason in photo_dropped]
-
-    # Дедуп по адресу+планировке убран по решению пользователя — слишком
-    # грубая эвристика, риск склеить разные квартиры с одинаковой типовой
-    # планировкой на одном этаже перевешивал пользу. Остался только дедуп
-    # по photo_set_hash (см. photo_kept выше) — функции
-    # dedupe_by_address_layout/dedupe_against_existing_address оставлены в
-    # файле неиспользуемыми на случай, если понадобятся снова.
-
-    # --- Целостность этажа ---
-    floor_kept, floor_dropped = floor_integrity_filter(photo_kept)
-    print(f"floor > floor_total: прошло {len(floor_kept)}, отсеяно {len(floor_dropped)}")
-    all_dropped += [(r, "floor_integrity", reason) for r, reason in floor_dropped]
-
-    # --- Price / square sanity ---
-    # В инкрементальном режиме квартили IQR считаются по объединению
-    # baseline + новой пачки (статистически честнее малой пачки), но
-    # решение "оставить/отсеять" применяется только к новой пачке —
-    # см. sanity_filter_with_reference / apply_iqr_filter_with_reference.
-    if incremental:
-        price_kept, price_dropped = sanity_filter_with_reference(
-            floor_kept, reference_rows_for_iqr, price_m2_value, HARD_MIN_PRICE_M2, HARD_MAX_PRICE_M2, "price_m2"
+    if baseline_path:
+        baseline_rows, usable_pool = prepare_baseline(baseline_path)
+        print(
+            f"Эталон: {baseline_path}; всего={len(baseline_rows)}, "
+            f"usable={len(usable_pool)}"
         )
     else:
-        price_kept, price_dropped = sanity_filter(
-            floor_kept, price_m2_value, HARD_MIN_PRICE_M2, HARD_MAX_PRICE_M2, "price_m2"
+        # Backward-compatible offline mode.
+        usable_pool = [
+            r for r in rows
+            if not r["_excluded_baseline"]
+        ]
+        print(
+            "⚠️ --baseline не задан: используется self-referential pool. "
+            "Для реального мониторинга это НЕ рекомендуется."
         )
-    all_dropped += [(r, "price_sanity", reason) for r, reason in price_dropped]
 
-    if incremental:
-        square_kept, square_dropped = sanity_filter_with_reference(
-            price_kept, reference_rows_for_iqr, square_m2_value, HARD_MIN_SQUARE_M2, HARD_MAX_SQUARE_M2, "square_m2"
+    segments = compute_price_segments(usable_pool)
+    citywide_median = citywide_median_by_rooms(usable_pool)
+
+    results = [
+        score_row(
+            r, usable_pool, segments, citywide_median,
+            soft_target=soft_target
         )
-    else:
-        square_kept, square_dropped = sanity_filter(
-            price_kept, square_m2_value, HARD_MIN_SQUARE_M2, HARD_MAX_SQUARE_M2, "square_m2"
+        for r in rows
+    ]
+
+    write_output(output_path, rows, results)
+
+    scored = [r for r in results if r.get("status") == "scored"]
+    verdicts = {}
+    for r in scored:
+        verdicts[r.get("verdict")] = verdicts.get(r.get("verdict"), 0) + 1
+
+    print(f"✅ {output_path}: scored={len(scored)}")
+    print(f"   verdicts={verdicts}")
+
+    if baseline_path:
+        print(
+            "ℹ️ Incoming rows не чистятся по owner/photo/red_flags: "
+            "эти признаки отражены как warnings/confidence."
         )
-    all_dropped += [(r, "square_sanity", reason) for r, reason in square_dropped]
-
-    sane_rows = square_kept
-
-    # --- Stage 2 ---
-    if skip_llm:
-        # По решению пользователя (на сейчас): не гонять LLM по каждому
-        # новому объявлению — долго и не оправдало себя. Строки уходят в
-        # baseline с пустой Stage 2 разметкой и llm_skipped_error=True —
-        # это МАРКЕР "ещё не проанализировано", не "ошибка анализа".
-        # Позже можно догнать отдельным прогоном (например, отфильтровав
-        # baseline по llm_skipped_error == True).
-        print("⏭️  Stage 2 (LLM) пропущен по флагу --skip-llm.")
-        final_kept = []
-        for row in sane_rows:
-            result = dict(DEFAULT_RESULT)
-            result["_skipped_error"] = True  # тот же ключ, что и у stage2_llm_analyze,
-            # только смысл шире: "не проанализировано" (по флагу), а не только "ошибка API"
-            final_kept.append((row, result))
-    elif not sane_rows:
-        print("Нет записей после чистки — Stage 2 пропущен.")
-        final_kept = []
-    else:
-        cache = load_cache(cache_path)
-        results = await analyze_all(sane_rows, cache, concurrency)
-        save_cache(cache_path, cache)
-
-        # --- Физический отсев по red_flags / рассрочке (по решению пользователя) ---
-        # Раньше эти записи оставались в эталоне с флагом requires_manual_review /
-        # is_installment_segment, и их исключением занимался уже Stage 3 на
-        # этапе построения когорт. Теперь эталон компактнее — такие записи
-        # физически уходят в dropped-лог прямо здесь, в baseline.csv их не
-        # будет вообще (Stage 3 по-прежнему проверяет эти флаги в своей логике
-        # исключения — это ничему не мешает, просто там больше нечего исключать,
-        # т.к. подобных строк в эталоне уже не будет).
-        final_kept = []
-        for row, result in results:
-            manual_review = requires_manual_review(result)
-            is_installment = to_bool(row.get("is_installment_segment"))
-            if manual_review or is_installment:
-                reasons = []
-                if manual_review:
-                    reasons.append(f"requires_manual_review (red_flags={result.get('red_flags') or []})")
-                if is_installment:
-                    reasons.append("is_installment_segment")
-                all_dropped.append((row, "stage2_exclusion", "; ".join(reasons)))
-            else:
-                final_kept.append((row, result))
-
-    base_fieldnames = existing_fieldnames if incremental and existing_fieldnames else (
-        list(rows[0].keys()) if rows else []
-    )
-    if not incremental:
-        if "is_installment_segment" not in base_fieldnames:
-            base_fieldnames.append("is_installment_segment")
-        if "baseline_warning" not in base_fieldnames:
-            # добавляется dedupe_by_photo_hash/dedupe_by_address_layout, когда
-            # запись оставлена как "похоже на другого продавца", а не удалена
-            base_fieldnames.append("baseline_warning")
-
-    if incremental:
-        # Дописываем в конец, существующие строки не трогаем/не переупорядочиваем.
-        new_baseline_rows = []
-        for row, result in final_kept:
-            out_row = dict(row)
-            out_row["finish_type"] = result.get("finish_type") or ""
-            out_row["red_flags"] = json.dumps(result.get("red_flags") or [], ensure_ascii=False)
-            out_row["premium_markers"] = json.dumps(result.get("premium_markers") or [], ensure_ascii=False)
-            out_row["extra_attributes"] = json.dumps(result.get("extra_attributes") or {}, ensure_ascii=False)
-            out_row["requires_manual_review"] = requires_manual_review(result) if not skip_llm else False
-            out_row["llm_skipped_error"] = bool(result.get("_skipped_error"))
-            new_baseline_rows.append(out_row)
-        append_rows_csv(output_path, new_baseline_rows, base_fieldnames)
-        append_rows_csv(
-            dropped_path,
-            [{**{k: v for k, v in r.items() if k in base_fieldnames}, "drop_stage": s, "drop_reason": reason}
-             for r, s, reason in all_dropped],
-            base_fieldnames + DROPPED_EXTRA_FIELDNAMES,
-        )
-        print(f"✅ {output_path} — дописано {len(new_baseline_rows)} новых записей "
-              f"(итого в файле: {len(reference_rows_for_iqr) + len(new_baseline_rows)})")
-        print(f"🗑️  {dropped_path} — дописано {len(all_dropped)} отсеянных записей этого прогона")
-    else:
-        write_baseline(output_path, final_kept, base_fieldnames)
-        write_dropped(dropped_path, all_dropped, base_fieldnames)
-        print(f"✅ {output_path} — {len(final_kept)} записей в эталоне")
-        print(f"🗑️  {dropped_path} — {len(all_dropped)} отсеянных записей, с причинами по каждому шагу")
 
 
 if __name__ == "__main__":
-    _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    _BASELINE_DIR = os.path.join(_BASE_DIR, "..", "baseline")
-    _RAW_DETAIL_DEFAULT = os.path.join(
-        _BASE_DIR, "..", "1_krisha_parser", "slow_track", "krisha_astana_detail.csv"
-    )
     parser = argparse.ArgumentParser()
+    parser.add_argument("--input", default="krisha_astana_analyzed.csv")
+    parser.add_argument("--output", default="krisha_astana_benchmark.csv")
+    parser.add_argument("--baseline", default=None)
     parser.add_argument(
-        "--input", default=_RAW_DETAIL_DEFAULT,
-        help="Сырой снепшот парсера (по умолчанию — актуальный slow_track/krisha_astana_detail.csv, "
-             "а не старый замороженный krisha_astana_detail_snapshot.csv)",
-    )
-    parser.add_argument(
-        "--output", default=os.path.join(_BASELINE_DIR, "krisha_astana_baseline.csv")
-    )
-    parser.add_argument(
-        "--cache", default=os.path.join(_BASELINE_DIR, "llm_analysis_cache.json")
-    )
-    parser.add_argument("--concurrency", type=int, default=4)
-    parser.add_argument(
-        "--skip-llm", action="store_true",
-        help="Не гонять Stage 2 (LLM-разметку) для новых строк — быстрее, но "
-             "finish_type/red_flags/premium_markers останутся пустыми, а строки "
-             "будут помечены llm_skipped_error=True для последующей доразметки.",
+        "--strict-target",
+        action="store_true",
+        help="использовать старое жёсткое поведение для target; "
+             "для новых объявлений НЕ включать",
     )
     args = parser.parse_args()
 
-    dropped_path = args.output.rsplit(".", 1)[0] + ".dropped.csv"
     try:
-        asyncio.run(run(args.input, args.output, dropped_path, args.cache, args.concurrency, skip_llm=args.skip_llm))
+        run(
+            args.input,
+            args.output,
+            args.baseline,
+            soft_target=not args.strict_target,
+        )
     except FileNotFoundError as e:
         print(f"❌ Файл не найден: {e}")
         sys.exit(1)
-    except KeyboardInterrupt:
-        print("\nПрервано пользователем.")
-        sys.exit(0)
