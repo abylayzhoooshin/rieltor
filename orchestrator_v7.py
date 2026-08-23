@@ -123,6 +123,12 @@ INCOMING_CACHE_SLOW = os.path.join(CACHE_DIR, "incoming_llm_analysis_cache_slow.
 EVER_SENT_IDS_FILE = os.path.join(BASE_DIR, "ever_sent_ids.json")
 NOTIFICATIONS_LOG_CSV = os.path.join(BASE_DIR, "notifications_log_v2.csv")
 
+# Накопительная таблица ВСЕХ квартир (после чистки), что видели оба трека —
+# независимо от того, ушло ли уведомление пользователю. Апсертится по id,
+# дубли гасятся по content_hash. Растёт бесконечно, но каждая запись — это
+# одна строка на один id (при изменениях — перезаписывается, не дублируется).
+APARTMENTS_TABLE_CSV = os.path.join(BASE_DIR, "apartments_table.csv")
+
 # ============================== TELEGRAM ==============================
 
 # Дефолты прямо в файле — чтобы не задавать переменные окружения в
@@ -375,6 +381,150 @@ def append_notifications(path, rows):
         # Stage 3 keeps the full listing row, but the notification log has a
         # deliberate compact schema. Drop non-log fields explicitly.
         writer.writerows([to_notification_row(row) for row in rows])
+
+
+# ============================== ТАБЛИЦА КВАРТИР (apartments_table.csv) ==============================
+
+# Поля, по которым считается content_hash: если хоть одно из них изменилось —
+# считаем, что у объявления реально что-то изменилось (цена, площадь и т.п.),
+# а не просто повторно попалось на глаза (bump).
+APARTMENT_HASH_FIELDS = [
+    "id", "price", "rooms", "square_m2", "floor", "floor_total",
+    "district", "street", "house_num", "title", "seller_type",
+    "owner_name", "finish_type", "photo_count",
+]
+
+# Служебные колонки, которых нет в сырых строках воркеров, но которые
+# таблица ведёт сама (bookkeeping, не трогаются извне).
+APARTMENTS_TABLE_META_FIELDS = [
+    "content_hash", "first_seen_at", "last_seen_at", "times_seen", "table_source",
+]
+
+apartments_table_lock = asyncio.Lock()
+
+
+def compute_content_hash(row):
+    """Стабильный хэш по значимым полям объявления.
+
+    Специально НЕ включает поля вроде scraped_at/added_at — иначе хэш менялся
+    бы каждый прогон просто от факта повторного скрапинга, и апсерт перестал
+    бы отличать "правда изменилось" от "снова увидели то же самое"."""
+    import hashlib
+
+    parts = []
+    for field in APARTMENT_HASH_FIELDS:
+        value = row.get(field, "")
+        parts.append(f"{field}={'' if value is None else str(value).strip()}")
+    digest = hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()
+    return digest[:16]
+
+
+def load_apartments_table(path):
+    """Возвращает (rows_by_id, fieldnames_union) существующей таблицы."""
+    if not os.path.exists(path):
+        return {}, []
+    with open(path, "r", encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f)
+        fieldnames = reader.fieldnames or []
+        rows_by_id = {}
+        for r in reader:
+            rid = r.get("id")
+            if rid:
+                rows_by_id[rid] = dict(r)
+    return rows_by_id, fieldnames
+
+
+def save_apartments_table(path, rows_by_id, fieldnames):
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8-sig", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+        writer.writeheader()
+        for row in rows_by_id.values():
+            writer.writerow(row)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
+
+
+def upsert_apartments_table(path, rows, source):
+    """
+    Дедуп по id + content_hash:
+      - id новый                              -> добавляем строку;
+      - id уже есть, content_hash совпал       -> дубль, просто обновляем
+                                                   last_seen_at/times_seen,
+                                                   новую строку НЕ создаём;
+      - id уже есть, content_hash другой       -> объявление реально
+                                                   изменилось (цена и т.п.),
+                                                   перезаписываем строку на
+                                                   месте (не дублируем).
+    Возвращает (added, updated, unchanged) — только для логирования.
+    """
+    if not rows:
+        return 0, 0, 0
+
+    rows_by_id, existing_fieldnames = load_apartments_table(path)
+
+    now = utcnow_iso()
+    added = updated = unchanged = 0
+    fieldnames = list(existing_fieldnames)
+
+    for row in rows:
+        rid = row.get("id")
+        if not rid:
+            continue  # без id дедуп по id невозможен — пропускаем эту строку
+        rid = str(rid)
+
+        content_hash = compute_content_hash(row)
+        prev = rows_by_id.get(rid)
+
+        if prev is None:
+            new_row = dict(row)
+            new_row["id"] = rid
+            new_row["content_hash"] = content_hash
+            new_row["first_seen_at"] = now
+            new_row["last_seen_at"] = now
+            new_row["times_seen"] = 1
+            new_row["table_source"] = source
+            rows_by_id[rid] = new_row
+            added += 1
+        elif prev.get("content_hash") == content_hash:
+            # Тот же id, тот же контент — это дубль (bump/повтор), не создаём
+            # новую строку, только освежаем метку "видели снова".
+            prev["last_seen_at"] = now
+            try:
+                prev["times_seen"] = int(prev.get("times_seen") or 0) + 1
+            except (TypeError, ValueError):
+                prev["times_seen"] = 1
+            unchanged += 1
+        else:
+            # Тот же id, но что-то изменилось (цена и т.п.) — обновляем строку
+            # на месте, не дублируем; first_seen_at сохраняем.
+            first_seen = prev.get("first_seen_at") or now
+            times_seen = prev.get("times_seen")
+            try:
+                times_seen = int(times_seen or 0) + 1
+            except (TypeError, ValueError):
+                times_seen = 1
+            new_row = dict(row)
+            new_row["id"] = rid
+            new_row["content_hash"] = content_hash
+            new_row["first_seen_at"] = first_seen
+            new_row["last_seen_at"] = now
+            new_row["times_seen"] = times_seen
+            new_row["table_source"] = source
+            rows_by_id[rid] = new_row
+            updated += 1
+
+        for key in row:
+            if key not in fieldnames:
+                fieldnames.append(key)
+
+    for meta_field in APARTMENTS_TABLE_META_FIELDS:
+        if meta_field not in fieldnames:
+            fieldnames.append(meta_field)
+
+    save_apartments_table(path, rows_by_id, fieldnames)
+    return added, updated, unchanged
 
 
 # ============================== TELEGRAM ДОСТАВКА ==============================
@@ -696,6 +846,18 @@ async def process_and_notify(candidates_by_source, source):
     if not rows:
         return []
 
+    # Сразу после чистки (до скоринга/фильтров) — в накопительную таблицу.
+    # Идёт ВСЁ, что прошло чистку, независимо от того, отправим ли мы это
+    # пользователю; дедуп по id+content_hash не даёт расти дублям.
+    async with apartments_table_lock:
+        added, updated, unchanged = upsert_apartments_table(
+            APARTMENTS_TABLE_CSV, rows, source
+        )
+    print(
+        f"   🗂️  [{source}] apartments_table: +{added} новых, "
+        f"{updated} обновлено, {unchanged} дублей пропущено"
+    )
+
     # Не отбрасываем строки с плохой ценой/площадью здесь.
     # Stage 3 сохранит их с недостаточной уверенностью; отправка
     # всё равно невозможна без валидной цены.
@@ -797,6 +959,29 @@ async def slow_job():
     rows = [normalize_slow_row(r) for r in read_csv_rows(SLOW_PRICE_DROPS_CSV)]
     sent = await process_and_notify(rows, "slow")
     print(f"   📬 [slow] кандидатов из прогона: {len(rows)}, реально отправлено: {len(sent)}")
+
+    # Раз в час, после успешного полного обхода каталога slow-track'ом,
+    # освежаем в таблице ВСЕ ещё живые объявления — не только price_drops.
+    # Это отдельно от notify-пайплайна (без Stage 3/скоринга/registry):
+    # просто честное "последний раз видели тогда-то" + обновление цены, если
+    # она поменялась (content_hash поймает). Объявления, которых больше нет
+    # в снапшоте (сняты с продажи), НЕ трогаем и НЕ удаляем — они остаются
+    # в таблице как исторические данные для более полной картины по рынку.
+    detail_rows = read_csv_rows(SLOW_DETAIL_CSV)
+    if detail_rows:
+        async with apartments_table_lock:
+            added, updated, unchanged = upsert_apartments_table(
+                APARTMENTS_TABLE_CSV, detail_rows, "slow_full_snapshot"
+            )
+        print(
+            f"   🗂️  [slow] полное освежение apartments_table: +{added} новых, "
+            f"{updated} обновлено (цена/данные), {unchanged} без изменений"
+        )
+    else:
+        print(
+            f"   ⚠️ [slow] {SLOW_DETAIL_CSV} пуст/не найден — "
+            "часовое освежение apartments_table пропущено."
+        )
 
 
 async def safe_periodic_loop(name, interval_sec, job):

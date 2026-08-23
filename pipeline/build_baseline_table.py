@@ -65,17 +65,49 @@ Baseline table builder — эталонная (справочная) табли�
     группе есть дубли или мусорные записи, это смещает сами границы,
     по которым потом всё остальное фильтруется.
 
-ЧЕГО НЕ ДЕЛАЕТ:
+РЕЖИМ РАБОТЫ (ОБНОВЛЕНО — инкрементальное пополнение вместо заморозки):
+    Раньше: если output-файл уже существовал, скрипт вообще ничего не
+    делал (защита от случайной пересборки). Теперь, по решению
+    пользователя, это НЕ разовый снимок, а растущая база: если
+    krisha_astana_baseline.csv уже существует, скрипт переходит в
+    режим ДОПОЛНЕНИЯ —
+        1. читает существующий baseline и берёт из него id,
+           photo_set_hash и ключи (улица, дом, этаж, комнатность,
+           площадь) уже сохранённых объявлений;
+        2. из --input берёт только СТРОКИ С НОВЫМИ id (которых ещё нет
+           в baseline) — уже сохранённые записи не трогаются и не
+           перепроверяются повторно;
+        3. эти кандидаты проходят Stage 1 → фото-дедуп → адрес-дедуп →
+           (в обоих дедупах проверка идёт и против уже существующего
+           baseline, не только внутри новой пачки) → целостность этажа
+           → price/square sanity (IQR считается по объединению
+           baseline + новой пачки внутри группы rooms — так границы
+           статистически честнее, чем по одной маленькой пачке);
+        4. прошедшие фильтр строки ДОПИСЫВАЮТСЯ в конец
+           krisha_astana_baseline.csv (существующие строки не
+           переписываются и не переупорядочиваются), новые отсевы —
+           в конец .dropped.csv.
+    Если output-файла ещё нет — поведение как раньше: полная сборка с
+    нуля из всего --input.
+
+СОЗНАТЕЛЬНО НЕ ДЕЛАЕТ (пока, по решению пользователя — см. переписку):
     - не трогает krisha_astana_detail.csv (только читает)
-    - не пересобирает себя молча: если output-файл уже существует —
-      скрипт вообще ничего не делает (не читает input, не дёргает API,
-      не трогает кэш) и просто сообщает об этом. Эталон замораживается
-      осознанно один раз; чтобы пересобрать — удали
-      krisha_astana_baseline.csv (и .dropped.csv рядом) руками и
-      запусти снова. Никакого --force специально не добавлено —
-      решение пользователя: пересборка эталона должна быть заметным,
-      осознанным действием, а не флагом, который можно случайно
-      передать в автоматизации.
+    - НЕ чистит и НЕ удаляет из baseline записи, которые пропали с
+      Крыши (объявление снято/устарело) — они специально остаются как
+      исторический ценовой ориентир: цены на м² в Астане не настолько
+      волатильны, чтобы это было проблемой прямо сейчас. Периодическая
+      чистка устаревших записей — отдельная будущая задача (например,
+      раз в месяц), сюда сознательно не входит.
+    - --skip-llm (см. CLI) пропускает Stage 2 (LLM-разметку
+      finish_type/red_flags/premium_markers) для новых строк ради
+      скорости: они дописываются в baseline с пустыми Stage 2 полями и
+      llm_skipped_error=True (как маркер "ещё не проанализировано", а
+      не "было проанализировано и совпало с ошибкой") — так позже
+      можно будет отдельным прогоном найти и доразметить именно их.
+      Пока llm_skipped_error=True, физический отсев по red_flags/
+      рассрочке (Шаг 7 ниже) к этим строкам не применяется — редкий
+      компромисс: пропускной способности важнее полнота базы прямо
+      сейчас, разметку и связанный с ней отсев можно досчитать позже.
     - НЕ фильтрует по координатам (кривой geocoding вне Астаны) и НЕ
       отсекает устаревшие по published_date — по решению пользователя,
       оставлено вне скоупа этого шага.
@@ -145,6 +177,7 @@ from stage2_llm_analyze import (
     save_cache,
     requires_manual_review,
     OUTPUT_EXTRA_FIELDNAMES,
+    DEFAULT_RESULT,
 )
 
 # ============================== CONFIG ==============================
@@ -534,6 +567,166 @@ def dedupe_by_address_layout(rows):
     return kept, dropped
 
 
+# ============================== ИНКРЕМЕНТАЛЬНОЕ ПОПОЛНЕНИЕ ==============================
+
+
+def load_existing_baseline(path):
+    """
+    Читает уже существующий baseline и строит индексы для дедупа новых
+    кандидатов против него (не только внутри новой пачки, как раньше).
+
+    Возвращает (rows, fieldnames, existing_ids, existing_photo_hashes,
+    address_layout_index), где address_layout_index — это
+    {(street, house, floor, rooms): [square_m2, ...]} по уже принятым
+    записям, чтобы новый кандидат с площадью в пределах
+    SQUARE_DEDUP_TOLERANCE_M2 от уже существующей тоже считался дублем.
+    """
+    with open(path, "r", encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f)
+        fieldnames = reader.fieldnames or []
+        rows = list(reader)
+
+    existing_ids = {r.get("id") for r in rows if r.get("id")}
+    existing_photo_hashes = {
+        (r.get("photo_set_hash") or "").strip()
+        for r in rows
+        if (r.get("photo_set_hash") or "").strip()
+    }
+
+    address_layout_index = {}
+    for r in rows:
+        street = (r.get("street") or "").strip().lower()
+        house = (r.get("house_num") or "").strip().lower()
+        floor = (r.get("floor") or "").strip()
+        rooms = (r.get("rooms") or "").strip()
+        if not street or not house:
+            continue
+        sq = to_float(r.get("square_m2"))
+        if sq is None:
+            continue
+        address_layout_index.setdefault((street, house, floor, rooms), []).append(sq)
+
+    return rows, fieldnames, existing_ids, existing_photo_hashes, address_layout_index
+
+
+def split_already_known(rows, existing_ids):
+    """Новые id (кандидаты) vs id, уже присутствующие в baseline (не трогаем)."""
+    new_rows, known = [], []
+    for row in rows:
+        if row.get("id") in existing_ids:
+            known.append(row)
+        else:
+            new_rows.append(row)
+    return new_rows, known
+
+
+def dedupe_against_existing_photo(rows, existing_photo_hashes):
+    """Кандидат отсеивается, если его photo_set_hash уже есть в baseline —
+    та же физическая квартира уже сохранена (под другим/тем же id)."""
+    kept, dropped = [], []
+    for row in rows:
+        h = (row.get("photo_set_hash") or "").strip()
+        if h and h in existing_photo_hashes:
+            dropped.append((row, f"already_in_baseline_photo_set_hash ({h[:12]}...)"))
+        else:
+            kept.append(row)
+    return kept, dropped
+
+
+def dedupe_against_existing_address(rows, address_layout_index, tolerance=SQUARE_DEDUP_TOLERANCE_M2):
+    """Та же идея, что и dedupe_against_existing_photo, но по ключу
+    (улица, дом, этаж, комнатность) + площадь в пределах допуска —
+    страховка на случай, если фото перезалиты другим набором."""
+    kept, dropped = [], []
+    for row in rows:
+        street = (row.get("street") or "").strip().lower()
+        house = (row.get("house_num") or "").strip().lower()
+        floor = (row.get("floor") or "").strip()
+        rooms = (row.get("rooms") or "").strip()
+        sq = to_float(row.get("square_m2"))
+        key = (street, house, floor, rooms)
+        existing_squares = address_layout_index.get(key) if street and house else None
+
+        if existing_squares and sq is not None and any(
+            abs(sq - existing_sq) <= tolerance for existing_sq in existing_squares
+        ):
+            dropped.append((
+                row,
+                f"already_in_baseline_address_layout (street={street!r}, house={house!r}, "
+                f"floor={floor!r}, rooms={rooms!r}, square within {tolerance}m2)",
+            ))
+        else:
+            kept.append(row)
+    return kept, dropped
+
+
+def apply_iqr_filter_with_reference(new_rows, reference_rows, value_fn, field_label, group_key_fn=rooms_group_key):
+    """
+    Тот же метод Тьюки, что и apply_iqr_filter, но квартили считаются по
+    ОБЪЕДИНЕНИЮ reference_rows (уже принятые в baseline, статистически
+    надёжнее — их много) и new_rows (новая пачка) внутри группы rooms.
+    Фильтруются (kept/dropped) при этом только new_rows — reference_rows
+    уже в baseline и не пересматриваются.
+    """
+    ref_by_group = {}
+    for row in reference_rows:
+        ref_by_group.setdefault(group_key_fn(row), []).append(row)
+    new_by_group = {}
+    for row in new_rows:
+        new_by_group.setdefault(group_key_fn(row), []).append(row)
+
+    kept, dropped = [], []
+    for group_key, group_new_rows in new_by_group.items():
+        combined_values = sorted(
+            v for v in (
+                value_fn(r) for r in ref_by_group.get(group_key, []) + group_new_rows
+            ) if v is not None
+        )
+        if len(combined_values) < IQR_MIN_GROUP_SIZE:
+            kept.extend(group_new_rows)  # мало данных — не трогаем
+            continue
+
+        q1 = statistics.quantiles(combined_values, n=4)[0]
+        q3 = statistics.quantiles(combined_values, n=4)[2]
+        iqr = q3 - q1
+        lower = q1 - IQR_MULTIPLIER * iqr
+        upper = q3 + IQR_MULTIPLIER * iqr
+
+        for row in group_new_rows:
+            v = value_fn(row)
+            if v is not None and (v < lower or v > upper):
+                dropped.append((
+                    row,
+                    f"{field_label}_outlier_iqr (group={group_key}, {v:.0f} вне [{lower:.0f}, {upper:.0f}], "
+                    "границы посчитаны по baseline+новая пачка)",
+                ))
+            else:
+                kept.append(row)
+    return kept, dropped
+
+
+def sanity_filter_with_reference(rows, reference_rows, value_fn, hard_min, hard_max, field_label):
+    print(f"   {field_label}: жёсткие границы [{hard_min}, {hard_max}]")
+    after_hard, dropped_hard = apply_hard_bounds(rows, value_fn, hard_min, hard_max, field_label)
+    print(f"   {field_label} жёсткий фильтр: прошло {len(after_hard)}, отсеяно {len(dropped_hard)}")
+
+    after_iqr, dropped_iqr = apply_iqr_filter_with_reference(after_hard, reference_rows, value_fn, field_label)
+    print(f"   {field_label} IQR (группы rooms, baseline+новая пачка, min размер {IQR_MIN_GROUP_SIZE}): "
+          f"прошло {len(after_iqr)}, отсеяно {len(dropped_iqr)}")
+
+    dropped = dropped_hard + dropped_iqr
+    return after_iqr, dropped
+
+
+def append_rows_csv(path, rows, fieldnames):
+    """Дописывает строки в конец существующего CSV БЕЗ шапки и без
+    переписывания уже сохранённых строк."""
+    with open(path, "a", encoding="utf-8-sig", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+        for row in rows:
+            writer.writerow({k: row.get(k, "") for k in fieldnames})
+
+
 # ============================== ЦЕЛОСТНОСТЬ: ЭТАЖ ==============================
 
 
@@ -638,7 +831,8 @@ def write_baseline(path, rows_with_results, base_fieldnames):
             out_row["red_flags"] = json.dumps(result.get("red_flags") or [], ensure_ascii=False)
             out_row["premium_markers"] = json.dumps(result.get("premium_markers") or [], ensure_ascii=False)
             out_row["extra_attributes"] = json.dumps(result.get("extra_attributes") or {}, ensure_ascii=False)
-            out_row["requires_manual_review"] = requires_manual_review(result)
+            out_row["requires_manual_review"] = requires_manual_review(result) if not result.get("_skipped_error") else False
+            out_row["llm_skipped_error"] = bool(result.get("_skipped_error"))
             writer.writerow(out_row)
 
 
@@ -657,105 +851,182 @@ def write_dropped(path, dropped_triples, base_fieldnames):
 # ============================== MAIN ==============================
 
 
-async def run(input_path, output_path, dropped_path, cache_path, concurrency):
-    if os.path.exists(output_path):
-        print(f"⏭️  {output_path} уже существует — эталон не пересобирается.")
-        print("    Чтобы пересобрать: удали этот файл (и .dropped.csv рядом) вручную и запусти снова.")
-        return
+async def run(input_path, output_path, dropped_path, cache_path, concurrency, skip_llm=False):
+    incremental = os.path.exists(output_path)
+
+    existing_ids = set()
+    existing_photo_hashes = set()
+    address_layout_index = {}
+    reference_rows_for_iqr = []
+    existing_fieldnames = None
+
+    if incremental:
+        existing_rows, existing_fieldnames, existing_ids, existing_photo_hashes, address_layout_index = \
+            load_existing_baseline(output_path)
+        reference_rows_for_iqr = existing_rows
+        print(f"📚 {output_path} уже существует ({len(existing_rows)} записей) — режим пополнения.")
+    else:
+        print(f"🆕 {output_path} не найден — собираю эталон с нуля.")
 
     rows = load_rows(input_path)
     print(f"Загружено сырых записей из {input_path}: {len(rows)}")
     all_dropped = []
+
+    if incremental:
+        rows, already_known = split_already_known(rows, existing_ids)
+        print(f"Уже есть в baseline (по id, не трогаем): {len(already_known)}; новых кандидатов: {len(rows)}")
 
     # --- Stage 1 (переиспользуем как есть) ---
     stage1_kept, stage1_dropped_raw = stage1_clean_rows(rows)
     print(f"Stage 1: прошло {len(stage1_kept)}, отсеяно {len(stage1_dropped_raw)}")
     all_dropped += [(r, "stage1", r.get("drop_reason")) for r in stage1_dropped_raw]
 
-    # --- Дедуп по фото (новое) ---
-    photo_kept, photo_dropped = dedupe_by_photo_hash(stage1_kept)
-    print(f"Дедуп по photo_set_hash: прошло {len(photo_kept)}, отсеяно {len(photo_dropped)}")
+    photo_pool = stage1_kept
+    if incremental:
+        photo_pool, existing_photo_dropped = dedupe_against_existing_photo(photo_pool, existing_photo_hashes)
+        print(f"Уже есть в baseline по photo_set_hash: отсеяно {len(existing_photo_dropped)}")
+        all_dropped += [(r, "photo_dedup_existing", reason) for r, reason in existing_photo_dropped]
+
+    # --- Дедуп по фото (внутри новой пачки) ---
+    photo_kept, photo_dropped = dedupe_by_photo_hash(photo_pool)
+    print(f"Дедуп по photo_set_hash (внутри пачки): прошло {len(photo_kept)}, отсеяно {len(photo_dropped)}")
     all_dropped += [(r, "photo_dedup", reason) for r, reason in photo_dropped]
 
-    # --- Дедуп по адресу+планировке (новое, страховка поверх фото-дедупа) ---
-    addr_kept, addr_dropped = dedupe_by_address_layout(photo_kept)
-    print(f"Дедуп по адресу+планировке: прошло {len(addr_kept)}, отсеяно {len(addr_dropped)}")
-    all_dropped += [(r, "address_layout_dedup", reason) for r, reason in addr_dropped]
+    # Дедуп по адресу+планировке убран по решению пользователя — слишком
+    # грубая эвристика, риск склеить разные квартиры с одинаковой типовой
+    # планировкой на одном этаже перевешивал пользу. Остался только дедуп
+    # по photo_set_hash (см. photo_kept выше) — функции
+    # dedupe_by_address_layout/dedupe_against_existing_address оставлены в
+    # файле неиспользуемыми на случай, если понадобятся снова.
 
-    # --- Целостность этажа (новое) ---
-    floor_kept, floor_dropped = floor_integrity_filter(addr_kept)
+    # --- Целостность этажа ---
+    floor_kept, floor_dropped = floor_integrity_filter(photo_kept)
     print(f"floor > floor_total: прошло {len(floor_kept)}, отсеяно {len(floor_dropped)}")
     all_dropped += [(r, "floor_integrity", reason) for r, reason in floor_dropped]
 
-    # --- Price sanity ---
-    price_kept, price_dropped = sanity_filter(
-        floor_kept, price_m2_value, HARD_MIN_PRICE_M2, HARD_MAX_PRICE_M2, "price_m2"
-    )
+    # --- Price / square sanity ---
+    # В инкрементальном режиме квартили IQR считаются по объединению
+    # baseline + новой пачки (статистически честнее малой пачки), но
+    # решение "оставить/отсеять" применяется только к новой пачке —
+    # см. sanity_filter_with_reference / apply_iqr_filter_with_reference.
+    if incremental:
+        price_kept, price_dropped = sanity_filter_with_reference(
+            floor_kept, reference_rows_for_iqr, price_m2_value, HARD_MIN_PRICE_M2, HARD_MAX_PRICE_M2, "price_m2"
+        )
+    else:
+        price_kept, price_dropped = sanity_filter(
+            floor_kept, price_m2_value, HARD_MIN_PRICE_M2, HARD_MAX_PRICE_M2, "price_m2"
+        )
     all_dropped += [(r, "price_sanity", reason) for r, reason in price_dropped]
 
-    # --- Square sanity (новое) ---
-    square_kept, square_dropped = sanity_filter(
-        price_kept, square_m2_value, HARD_MIN_SQUARE_M2, HARD_MAX_SQUARE_M2, "square_m2"
-    )
+    if incremental:
+        square_kept, square_dropped = sanity_filter_with_reference(
+            price_kept, reference_rows_for_iqr, square_m2_value, HARD_MIN_SQUARE_M2, HARD_MAX_SQUARE_M2, "square_m2"
+        )
+    else:
+        square_kept, square_dropped = sanity_filter(
+            price_kept, square_m2_value, HARD_MIN_SQUARE_M2, HARD_MAX_SQUARE_M2, "square_m2"
+        )
     all_dropped += [(r, "square_sanity", reason) for r, reason in square_dropped]
 
     sane_rows = square_kept
 
-    # --- Stage 2 (переиспользуем как есть, с общим кэшем) ---
-    if not sane_rows:
+    # --- Stage 2 ---
+    if skip_llm:
+        # По решению пользователя (на сейчас): не гонять LLM по каждому
+        # новому объявлению — долго и не оправдало себя. Строки уходят в
+        # baseline с пустой Stage 2 разметкой и llm_skipped_error=True —
+        # это МАРКЕР "ещё не проанализировано", не "ошибка анализа".
+        # Позже можно догнать отдельным прогоном (например, отфильтровав
+        # baseline по llm_skipped_error == True).
+        print("⏭️  Stage 2 (LLM) пропущен по флагу --skip-llm.")
+        final_kept = []
+        for row in sane_rows:
+            result = dict(DEFAULT_RESULT)
+            result["_skipped_error"] = True  # тот же ключ, что и у stage2_llm_analyze,
+            # только смысл шире: "не проанализировано" (по флагу), а не только "ошибка API"
+            final_kept.append((row, result))
+    elif not sane_rows:
         print("Нет записей после чистки — Stage 2 пропущен.")
-        results = []
+        final_kept = []
     else:
         cache = load_cache(cache_path)
         results = await analyze_all(sane_rows, cache, concurrency)
         save_cache(cache_path, cache)
 
-    # --- Физический отсев по red_flags / рассрочке (по решению пользователя) ---
-    # Раньше эти записи оставались в эталоне с флагом requires_manual_review /
-    # is_installment_segment, и их исключением занимался уже Stage 3 на
-    # этапе построения когорт. Теперь эталон компактнее — такие записи
-    # физически уходят в dropped-лог прямо здесь, в baseline.csv их не
-    # будет вообще (Stage 3 по-прежнему проверяет эти флаги в своей логике
-    # исключения — это ничему не мешает, просто там больше нечего исключать,
-    # т.к. подобных строк в эталоне уже не будет).
-    final_kept = []
-    for row, result in results:
-        manual_review = requires_manual_review(result)
-        is_installment = to_bool(row.get("is_installment_segment"))
-        if manual_review or is_installment:
-            reasons = []
-            if manual_review:
-                reasons.append(f"requires_manual_review (red_flags={result.get('red_flags') or []})")
-            if is_installment:
-                reasons.append("is_installment_segment")
-            all_dropped.append((row, "stage2_exclusion", "; ".join(reasons)))
-        else:
-            final_kept.append((row, result))
+        # --- Физический отсев по red_flags / рассрочке (по решению пользователя) ---
+        # Раньше эти записи оставались в эталоне с флагом requires_manual_review /
+        # is_installment_segment, и их исключением занимался уже Stage 3 на
+        # этапе построения когорт. Теперь эталон компактнее — такие записи
+        # физически уходят в dropped-лог прямо здесь, в baseline.csv их не
+        # будет вообще (Stage 3 по-прежнему проверяет эти флаги в своей логике
+        # исключения — это ничему не мешает, просто там больше нечего исключать,
+        # т.к. подобных строк в эталоне уже не будет).
+        final_kept = []
+        for row, result in results:
+            manual_review = requires_manual_review(result)
+            is_installment = to_bool(row.get("is_installment_segment"))
+            if manual_review or is_installment:
+                reasons = []
+                if manual_review:
+                    reasons.append(f"requires_manual_review (red_flags={result.get('red_flags') or []})")
+                if is_installment:
+                    reasons.append("is_installment_segment")
+                all_dropped.append((row, "stage2_exclusion", "; ".join(reasons)))
+            else:
+                final_kept.append((row, result))
 
-    base_fieldnames = list(rows[0].keys()) if rows else []
+    base_fieldnames = existing_fieldnames if incremental and existing_fieldnames else (
+        list(rows[0].keys()) if rows else []
+    )
+    if not incremental:
+        if "is_installment_segment" not in base_fieldnames:
+            base_fieldnames.append("is_installment_segment")
+        if "baseline_warning" not in base_fieldnames:
+            # добавляется dedupe_by_photo_hash/dedupe_by_address_layout, когда
+            # запись оставлена как "похоже на другого продавца", а не удалена
+            base_fieldnames.append("baseline_warning")
 
-    if "is_installment_segment" not in base_fieldnames:
-        base_fieldnames.append("is_installment_segment")
-    if "baseline_warning" not in base_fieldnames:
-        # добавляется dedupe_by_photo_hash/dedupe_by_address_layout, когда
-        # запись оставлена как "похоже на другого продавца", а не удалена
-        base_fieldnames.append("baseline_warning")
-
-    write_baseline(output_path, final_kept, base_fieldnames)
-    write_dropped(dropped_path, all_dropped, base_fieldnames)
-
-    print(f"✅ {output_path} — {len(final_kept)} записей в эталоне")
-    print(f"🗑️  {dropped_path} — {len(all_dropped)} отсеянных записей, с причинами по каждому шагу "
-          f"(включая red_flags/рассрочку — теперь тоже физический отсев, а не просто флаг)")
+    if incremental:
+        # Дописываем в конец, существующие строки не трогаем/не переупорядочиваем.
+        new_baseline_rows = []
+        for row, result in final_kept:
+            out_row = dict(row)
+            out_row["finish_type"] = result.get("finish_type") or ""
+            out_row["red_flags"] = json.dumps(result.get("red_flags") or [], ensure_ascii=False)
+            out_row["premium_markers"] = json.dumps(result.get("premium_markers") or [], ensure_ascii=False)
+            out_row["extra_attributes"] = json.dumps(result.get("extra_attributes") or {}, ensure_ascii=False)
+            out_row["requires_manual_review"] = requires_manual_review(result) if not skip_llm else False
+            out_row["llm_skipped_error"] = bool(result.get("_skipped_error"))
+            new_baseline_rows.append(out_row)
+        append_rows_csv(output_path, new_baseline_rows, base_fieldnames)
+        append_rows_csv(
+            dropped_path,
+            [{**{k: v for k, v in r.items() if k in base_fieldnames}, "drop_stage": s, "drop_reason": reason}
+             for r, s, reason in all_dropped],
+            base_fieldnames + DROPPED_EXTRA_FIELDNAMES,
+        )
+        print(f"✅ {output_path} — дописано {len(new_baseline_rows)} новых записей "
+              f"(итого в файле: {len(reference_rows_for_iqr) + len(new_baseline_rows)})")
+        print(f"🗑️  {dropped_path} — дописано {len(all_dropped)} отсеянных записей этого прогона")
+    else:
+        write_baseline(output_path, final_kept, base_fieldnames)
+        write_dropped(dropped_path, all_dropped, base_fieldnames)
+        print(f"✅ {output_path} — {len(final_kept)} записей в эталоне")
+        print(f"🗑️  {dropped_path} — {len(all_dropped)} отсеянных записей, с причинами по каждому шагу")
 
 
 if __name__ == "__main__":
-    _BASELINE_DIR = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "..", "baseline"
+    _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    _BASELINE_DIR = os.path.join(_BASE_DIR, "..", "baseline")
+    _RAW_DETAIL_DEFAULT = os.path.join(
+        _BASE_DIR, "..", "1_krisha_parser", "slow_track", "krisha_astana_detail.csv"
     )
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--input", default=os.path.join(_BASELINE_DIR, "krisha_astana_detail_snapshot.csv")
+        "--input", default=_RAW_DETAIL_DEFAULT,
+        help="Сырой снепшот парсера (по умолчанию — актуальный slow_track/krisha_astana_detail.csv, "
+             "а не старый замороженный krisha_astana_detail_snapshot.csv)",
     )
     parser.add_argument(
         "--output", default=os.path.join(_BASELINE_DIR, "krisha_astana_baseline.csv")
@@ -764,11 +1035,17 @@ if __name__ == "__main__":
         "--cache", default=os.path.join(_BASELINE_DIR, "llm_analysis_cache.json")
     )
     parser.add_argument("--concurrency", type=int, default=4)
+    parser.add_argument(
+        "--skip-llm", action="store_true",
+        help="Не гонять Stage 2 (LLM-разметку) для новых строк — быстрее, но "
+             "finish_type/red_flags/premium_markers останутся пустыми, а строки "
+             "будут помечены llm_skipped_error=True для последующей доразметки.",
+    )
     args = parser.parse_args()
 
     dropped_path = args.output.rsplit(".", 1)[0] + ".dropped.csv"
     try:
-        asyncio.run(run(args.input, args.output, dropped_path, args.cache, args.concurrency))
+        asyncio.run(run(args.input, args.output, dropped_path, args.cache, args.concurrency, skip_llm=args.skip_llm))
     except FileNotFoundError as e:
         print(f"❌ Файл не найден: {e}")
         sys.exit(1)
