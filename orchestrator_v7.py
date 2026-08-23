@@ -556,7 +556,11 @@ def format_telegram_message(notif_row):
         price_line += f" (было {old_price} ₸)"
 
     verdict = notif_row.get("verdict") or "—"
-    verdict_icon = "🔥" if verdict == "НАХОДКА" else "🔎"
+    verdict_icon = {
+        "НАХОДКА": "🔥",
+        "ТРЕБУЕТ ПРОВЕРКИ": "⚠️",
+        "РУЧНАЯ ПРОВЕРКА": "🔎",
+    }.get(verdict, "🔎")
 
     lines = [
         f"{verdict_icon} <b>{escape_html(notif_row.get('title') or 'Без названия')}</b>",
@@ -736,16 +740,27 @@ def score_incoming(rows):
     return results
 
 
+MANUAL_REVIEW_MIN_DIFF_PCT = 0.05
+
+
 def candidate_is_sendable(row):
     if not passes_basic_sanity(row):
         return False
     if row.get("verdict") == "НАХОДКА":
         return True
-    # Manual-review objects are useful only when they are also materially
-    # cheaper than the benchmark; otherwise we would notify on every red flag.
+    # ТРЕБУЕТ ПРОВЕРКИ exists specifically to flag suspiciously-large
+    # discounts for a human to check — always sendable, never suppressed.
+    if row.get("verdict") == "ТРЕБУЕТ ПРОВЕРКИ":
+        return True
+    # Manual-review objects (red flag present) are useful only when they are
+    # also materially cheaper than the benchmark; otherwise we would notify
+    # on every red flag. Threshold lowered from 0.10 to 0.05: at 0.10 a
+    # moderate discount (6-9%) with an unrelated/ambiguous red flag was
+    # silently dropped, even though 6-9% off is exactly the range a human
+    # reviewer would want to weigh against the flag themselves.
     if row.get("verdict") == "РУЧНАЯ ПРОВЕРКА":
         try:
-            return float(row.get("diff_pct")) >= 0.10
+            return float(row.get("diff_pct")) >= MANUAL_REVIEW_MIN_DIFF_PCT
         except (TypeError, ValueError):
             return False
     return False

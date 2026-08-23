@@ -1549,7 +1549,7 @@
     }
   },
   "1015023763": {
-    "text_hash": "d03b420bf7347e96329289f9e10c64de54b853be0ce8db9ec71fcaa7ded027db",
+    "text_hash": "f510b11b6a6af8ee8515f2458b0f00f6564cbd5fda950f03e7df152bf51ec9bb",
     "result": {
       "finish_type": "чистовая",
       "red_flags": [],
@@ -1557,8 +1557,8 @@
         "не новый, но аккуратный и чистый ремонт"
       ],
       "extra_attributes": {
-        "metro": "За Хан Шатыр",
         "pets": "Семейным или 2 3 женшинам",
+        "metro": "За Хан Шатыр",
         "balcony": "нет",
         "security": "нет"
       }
@@ -2100,6 +2100,2039 @@
       "extra_attributes": {
         "мебель": "полностью"
       }
+    }
+  },
+  "1006181759": {
+    "text_hash": "c255af5f6ec46252e0ea94c822cdc8b5637cc0c1c1c3405747f905fcb4948ba2",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "pets": null,
+        "parking": null,
+        "view": null,
+        "metro": null,
+        "balcony": null,
+        "security": null
+      }
+    }
+  },
+  "1011294104": {
+    "text_hash": "e7c09f7156e019469547ab8072245cf62be8f735947a72867973a4bb8edfe050",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "metro": "БОТАНИЧЕСКИЙ САД - MEGA",
+        "pets": "никто не жил"
+      }
+    }
+  },
+  "1012397956": {
+    "text_hash": "cf5d374bfd3193be9877156c4c711f280fcd72f18ed0729670ecc6eb91d88d61",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "мебель": "полностью",
+        "депозит": "в размере месячного платежа, возвращается в конце срока, если все в квартире ок",
+        "ком_усл": "оплачиваются отдельно",
+        "никто_не_жил": true,
+        "район": "возле НАЗАРБАЕВ УНИВЕРСИТЕТ"
+      }
+    }
+  },
+  "1006445296": {
+    "text_hash": "d7b555516034715d4b8a78863beb33c932ad88b79207755220994751b166d045",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "pets": "Семейным",
+        "parking": null,
+        "view": null,
+        "metro": null,
+        "balcony": null,
+        "security": null
+      }
+    }
+  },
+  "688238112": {
+    "text_hash": "f897cae924e8c4f022cdd52bb88d05a687c54a13a0db85024b71c8cc8ce76bbf",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "новая мебель",
+        "свежий ремонт"
+      ],
+      "extra_attributes": {
+        "pets": "не указано",
+        "parking": "во дворе паРКинг",
+        "view": "не указано",
+        "metro": "рядом Евразийский университет",
+        "balcony": "не указано",
+        "security": "не указано",
+        "детская_площадка": "во дворе детская площадка",
+        "магазины": "есть продуктовый магазины",
+        "школы": "есть разные школы",
+        "детский_сад": "есть детский сад",
+        "заправка": "есть заправка",
+        "автомойка": "рядом автомойка",
+        "этаж": "первый этаж",
+        "депозит": "требуется депозит",
+        "ком_услуга": "требуется коммунальные услуги"
+      }
+    }
+  },
+  "1014739260": {
+    "text_hash": "4e4ff04d77aef505473a423383366530499f44f60d5eba5240ddaccca0b1ebef",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "pets": false,
+        "parking": "входит в стоимость аренды",
+        "metro": "рядом ЛРТ",
+        "security": "дом бизнес класса"
+      }
+    }
+  },
+  "1015065741": {
+    "text_hash": "7a63558973f5cd57855d5b3b10cd8ba70a697cad194ee6a8842d5ab412c13652",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "мебель: полностью",
+        "аккуратный и чистый ремонт"
+      ],
+      "extra_attributes": {
+        "parking": "парковочное место",
+        "security": "охрана, консьерж",
+        "view": "возле Астана Опера",
+        "balcony": "нет"
+      }
+    }
+  },
+  "1015065560": {
+    "text_hash": "00294eef6f40d8f1eba716cf3af2c9b553334d8e8508d88425f73f1cdc922946",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "аккуратный и чистый ремонт"
+      ],
+      "extra_attributes": {
+        "pets": "не указано",
+        "parking": "true",
+        "view": "не указано",
+        "metro": "не указано",
+        "balcony": "не указано",
+        "security": "камера в подъездах во дворе",
+        "dвор": "закрытый",
+        "район": "7 поликлиники",
+        "тихий_район": "true",
+        "магазины": "два магазина",
+        "садики": "два садика",
+        "каспи_постамат": "true",
+        "мебель": "полностью"
+      }
+    }
+  },
+  "1015065471": {
+    "text_hash": "cf0ff91f4e65f43dcbe22b933d9736cb86555164010f19a23fd37707286f5019",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель",
+        "встроенные шкафы",
+        "кухня с бытовой техникой",
+        "телевизор",
+        "отдельная гардеробная",
+        "высокоскоростной интернет"
+      ],
+      "extra_attributes": {
+        "view": "панорамный вид на город",
+        "metro": "удобная транспортная доступность",
+        "pets": "не указано",
+        "parking": "не указано",
+        "security": "не указано",
+        "balcony": "не указано"
+      }
+    }
+  },
+  "1005512824": {
+    "text_hash": "b9cbc7e928d364eb3fded7b348424594a3390db167168c47e735a808ab9f2d23",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "евродвушка",
+        "современный ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "pets": "не указано",
+        "parking": "подземный паркинг",
+        "view": "не указано",
+        "metro": "не указано",
+        "balcony": "лоджия",
+        "security": "охраняемая территория, видеонаблюдение"
+      }
+    }
+  },
+  "1013082921": {
+    "text_hash": "980326259962d4eb0ad8511c7caa28078f238be2fc1daa3f5cc51a023228c0b5",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "view": "на березы во двор",
+        "metro": "рядом с Посольствами, Парком Первого президента, Мечетью Хазрет Султан, Национальным Музей, Пирамидой",
+        "pets": "не указано",
+        "parking": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "1013292169": {
+    "text_hash": "dde000a9017da3cd2c17cbb941ba0564ab2566afa8ee832400e71b34e9320b01",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "pets": "сдается желательно семейным",
+        "metro": "рядом расположены школы, детские сады и супермаркет Small",
+        "security": "депозит"
+      }
+    }
+  },
+  "1014934509": {
+    "text_hash": "ebe0d3806a16e29d644befa4e767057fe003797633f57b15fd7a90294f969db0",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "дорогая техника Bosch",
+        "вместительный шкаф в спальне",
+        "шкаф в прихожей",
+        "мебель в хорошем состоянии"
+      ],
+      "extra_attributes": {
+        "мебель": "полностью"
+      }
+    }
+  },
+  "1014944359": {
+    "text_hash": "2ff3bbb513e2471dfb113882270656a7faa5047826ebc29e1853a4a2b091fc3a",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "мебель: полностью"
+      ],
+      "extra_attributes": {
+        "metro": "остановка рядом",
+        "university": "рядом",
+        "transport": "автобусы на все направления"
+      }
+    }
+  },
+  "1015064721": {
+    "text_hash": "89d29c40dec9b0d7f028c326d19fa398048c8b586b12a2362c9548901653dcd4",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "pets": "не указано",
+        "parking": "теплый подземный паркинг",
+        "view": "не указано",
+        "metro": "не указано",
+        "balcony": "не указано",
+        "security": "закрытый двор"
+      }
+    }
+  },
+  "1015003210": {
+    "text_hash": "e7fc825b38862df30f408fe501c0b93f796280c9979778bf4602f08af1b7b590",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "евродвушка",
+        "аккуратный и чистый ремонт",
+        "стиральная машина",
+        "духовой шкаф",
+        "микроволновая печь",
+        "вся необходимая посуда",
+        "просторные шкафы"
+      ],
+      "extra_attributes": {
+        "metro": "Expo, Mega",
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "окна на две стороны — летом прохладно",
+        "balcony": "есть",
+        "security": "не указано"
+      }
+    }
+  },
+  "1015064331": {
+    "text_hash": "4bfccf381040b139da6acf79bad9f54ffb2ea66dc38cc9ea9ee21b4b65154e40",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель",
+        "новая бытовая техника"
+      ],
+      "extra_attributes": {
+        "metro": "рядом",
+        "view": "Ботанический сад, «Астана Арена», «Барыс Арена», Назарбаев Университет и ТРЦ MEGA Silk Way",
+        "pets": "не указано",
+        "parking": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "1015064303": {
+    "text_hash": "a4ca8eb5f3f507411a9b0d66ee1e612fbda81082aabbe0e4e3979dee96be5c1e",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "metro": "Ч. Айтматова",
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "1015064065": {
+    "text_hash": "dd3d253461b336221c7662e6864094d6fc351d067d078b4376b330bae9eed013",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "мебель": "полностью"
+      }
+    }
+  },
+  "1015063922": {
+    "text_hash": "ad334c241bd09d583e545342b94c3abd6a9d8f68e4043dafbaa9aee2cc5a433b",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "мебель: полностью"
+      ],
+      "extra_attributes": {
+        "security": "консьерж",
+        "metro": "рядом находится ТРЦ «Сары-Арка»",
+        "view": "не указано",
+        "pets": "не указано",
+        "parking": "не указано",
+        "balcony": "не указано"
+      }
+    }
+  },
+  "1014933665": {
+    "text_hash": "6176c30f6ab9ba4a3794f1daa912240a9ba86cc206243a3d95ec8c65afe0c182",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "мебель",
+        "бытовая техника"
+      ],
+      "extra_attributes": {
+        "pets": "нет",
+        "metro": "удобная транспортная развязка",
+        "school": "школа «Бином»",
+        "kindergarten": "детские сады",
+        "shopping": "магазины в шаговой доступности",
+        "shopping_center": "ТРЦ «Хан Шатыр»"
+      }
+    }
+  },
+  "1003408201": {
+    "text_hash": "0e1c70684895a535a14dd2db3856751fc7c3d4914368e30db30fa302b1595ad3",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "metro": "Н.Назарбаев университет 5 мин езды",
+        "infrastructure": "развита",
+        "school": "новая школа 50 метр",
+        "kindergarten": "садик 20 метр",
+        "pharmacy": "аптека",
+        "store": "магазин",
+        "security": "закрытый двор",
+        "elevator": "2 лифт",
+        "pets": "не указано",
+        "parking": "не указано"
+      }
+    }
+  },
+  "1006857363": {
+    "text_hash": "412224dc9c9614a6ac8325a50d42be26295db46ecf2d48a374577ae2fe1def89",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "pets": "без животных",
+        "metro": "рядом",
+        "security": "не указано",
+        "view": "не указано",
+        "balcony": "не указано"
+      }
+    }
+  },
+  "1014959801": {
+    "text_hash": "12ef593e14f1362a731830de8b678fc02cbbb427cfc607a5c50812aec4ee4ad0",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "мебель: полностью"
+      ],
+      "extra_attributes": {
+        "deposit": "300,000 тг",
+        "rent_duration": "на долгий срок от года и более",
+        "utilities_included": "ком. услуги внутри",
+        "condo": "ИП есть"
+      }
+    }
+  },
+  "1013715322": {
+    "text_hash": "c912746944f6b09f72d13c7ce52710b9763a870f88dbe0a065bd69ad5f6b524a",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "pets": "без домашних животных",
+        "metro": "рядом метро",
+        "view": "окна выходят во двор и на ул. Бокейхана",
+        "security": "не указано",
+        "balcony": "не указано"
+      }
+    }
+  },
+  "687012551": {
+    "text_hash": "b32d36d6131456ab3361170b4d98ba3ce2caca5d0a8c2976eedd817249882b99",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "metro": "EXPO, IT U., Actaна Балет, Меga Silk WAy",
+        "pets": "false",
+        "parking": "false",
+        "view": "Ботаника парк",
+        "security": "false"
+      }
+    }
+  },
+  "1015063533": {
+    "text_hash": "1d78cfac05f7af66695fbbbbefd8ab00339803af61565f710f88345eec3286f3",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "мебель": "полностью"
+      }
+    }
+  },
+  "1014595279": {
+    "text_hash": "56aaaaa755f91e55db5e7ffb29a0eb27012d58a8155236aab17c43866a33cd01",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "евроремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "metro": "топ локация",
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "663259975": {
+    "text_hash": "b2fe1422067a9f32098c52bc33e02e0b53baa24d0bcbfecc72a38617952388e1",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "metro": "рядом Mega SilkWAy, СК Алау",
+        "school": "школа Алпамыс"
+      }
+    }
+  },
+  "1015043324": {
+    "text_hash": "621884626c101b020d9827167719d985875f0a4346397aef97d2cb2bf3134d6d",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "мебель": "полностью"
+      }
+    }
+  },
+  "1014576641": {
+    "text_hash": "51ef8a38b31f821777e4712af95c3690007992a3687aee18e4d9abb5dcc8bc81",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "итальянская мебель",
+        "ортопедический матрас Askona",
+        "премиальная немецкая бытовая техника Borsce",
+        "качественная немецкая сантехника Grohe",
+        "фильтр питьевой воды"
+      ],
+      "extra_attributes": {
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "metro": "в шаговой доступности остановки общественного транспорта",
+        "balcony": "не указано",
+        "security": "озелененный двор с детской и спортивной площадкой, охраняемая территория"
+      }
+    }
+  },
+  "1014969613": {
+    "text_hash": "ef1fcac4f7d9fafc022951bbe75abdc7d2cc00a3e6904c7b6e1398c6f78f6b07",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "евро-2",
+        "свежий ремонт",
+        "новая мебель",
+        "кухонный гарнитур",
+        "холодильник",
+        "варочная поверхность",
+        "духовой шкаф",
+        "микроволновая печь",
+        "обеденный стол",
+        "двуспальная кровать",
+        "плотные шторы и тюль",
+        "стиральная машина"
+      ],
+      "extra_attributes": {
+        "pets": "нет",
+        "parking": "нет",
+        "view": "большая зона остекления",
+        "metro": "район Нура",
+        "balcony": "нет",
+        "security": "нет",
+        "area": "40 м²",
+        "floor": "4/12",
+        "furniture": "частично",
+        "deposit": "100 000 ₸",
+        "utilities": "оплачиваются отдельно",
+        "internet": "оплачивается самостоятельно",
+        "duration": "на длительный срок",
+        "sublet": "нет"
+      }
+    }
+  },
+  "1015062986": {
+    "text_hash": "8b00cf724772beff7589eef462fbb59b109992b706e416b9945192cb4be2130d",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "pets": "можно с детьми школьного возраста, студентам"
+      }
+    }
+  },
+  "1014957793": {
+    "text_hash": "691c31fe7c8e01f5c27b41ed34910770f66f1e322c8732e42a46dec799d7d705",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "pets": "Без животных",
+        "view": "Панорамный шикарный вид на Abu Dhabi Plaza",
+        "metro": "Напротив Зеленого квартала"
+      }
+    }
+  },
+  "1007573802": {
+    "text_hash": "450a023791d46b5c94e5ab19cc8f3fece74dc93c34d6da3d87490b1fa28b729c",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "евроремонт",
+        "новая мебель",
+        "посудомоечная машина",
+        "стиральная машина",
+        "кондиционер"
+      ],
+      "extra_attributes": {
+        "metro": "рядом Астана Арена, Барыс Арена",
+        "view": "близость к Ботаническому саду, Мега Силк Вей",
+        "pets": "не указано",
+        "parking": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "1015062209": {
+    "text_hash": "376e703c498658109d8ffccbd1fb49495f5c3f243375cbe83ede4591309d6218",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "евроремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "pets": "аккуратным и ответственным жильцам",
+        "metro": "остановки",
+        "view": "не указан",
+        "balcony": "не указан",
+        "security": "не указан",
+        "floor": "10 из 16",
+        "infrastructure": "магазины, аптеки, кафе, остановки"
+      }
+    }
+  },
+  "1015062241": {
+    "text_hash": "7a6a02fb208129d72c6add7314e0ef0fa609fe42203891855a3d0936eddf12a7",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "pets": null,
+        "parking": null,
+        "view": null,
+        "metro": null,
+        "balcony": null,
+        "security": null
+      }
+    }
+  },
+  "1015062146": {
+    "text_hash": "1a802466460e04b0d3eb4b35292d94955032e7bbdc180309e26960424b6bc346",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "pets": null,
+        "parking": null,
+        "view": null,
+        "metro": "рядом остановка",
+        "balcony": null,
+        "security": null
+      }
+    }
+  },
+  "1015060749": {
+    "text_hash": "8313218742e74d7beabb3dc0690103b61e4a9f68e93cc69d731a8c0bbe070786",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "новая мебель",
+        "свежий ремонт"
+      ],
+      "extra_attributes": {
+        "metro": "рядом университет КазГЮА",
+        "school": "рядом школа и детский сад",
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "security": "не указано",
+        "balcony": "не указано"
+      }
+    }
+  },
+  "1012779699": {
+    "text_hash": "b57cbcb86f0db61b96690a9eed84d6a9141f57da51f612b534080ebe7cd5e6e9",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "metro": "в шаговой доступности",
+        "security": "дом охраняемый и безопасный двор",
+        "parking": "закрытый и гостевой паркинг",
+        "view": "не указано",
+        "balcony": "не указано",
+        "pets": "не указано"
+      }
+    }
+  },
+  "1015048942": {
+    "text_hash": "b8c3046f7a084c4557eccc77c8cd9453836bc1eee9cdca33cbeeca5c0df33d8f",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "metro": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "1014634799": {
+    "text_hash": "c97a7df8e228eea1c0b597d81027060c62fab112562b47ed9212555e1f30c210",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "pets": "без вредных привычек",
+        "view": "видовая",
+        "security": "изолированная комната",
+        "metro": "в центре правого берега"
+      }
+    }
+  },
+  "1014517959": {
+    "text_hash": "20f8a1e40217b4d206fb91322d9efc266eed9f342cf920a21d3c04b196237934",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "евроремонт",
+        "новая мебель",
+        "полный бытовой техники новый"
+      ],
+      "extra_attributes": {
+        "pets": "Без домашних животных",
+        "metro": "рядом школа BINOM, Green Mall, Хан Шатыр",
+        "security": "не указано",
+        "view": "не указано",
+        "balcony": "не указано",
+        "parking": "не указано"
+      }
+    }
+  },
+  "1014971102": {
+    "text_hash": "e4b2768a7ad06217d852ff4bc100f68408d06e85feb1006c3029bd4165532a1d",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "pets": "Не курящим чистоплотным",
+        "balcony": "нет"
+      }
+    }
+  },
+  "1014610887": {
+    "text_hash": "e16e6ce99ad2bfb9d9cf52f06a3b3120c0db070d70c87f618c222fae5a0b9c62",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "parking": "true",
+        "security": "Умный дом, Алиса"
+      }
+    }
+  },
+  "698417468": {
+    "text_hash": "692d2e588ccd991926d179be84e8f208e5098e718fa9d75f17e26a48a1f92ef1",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "смарт-замки",
+        "videodomofon",
+        "гигиенический душ",
+        "окна с видом на Ботанический сад"
+      ],
+      "extra_attributes": {
+        "metro": "станция Тарлан, две остановки до ЭКСПО и Mega Silk Way",
+        "view": "вид на Ботанический сад",
+        "pets": "не указано",
+        "parking": "не указано",
+        "balcony": "не указано",
+        "security": "смарт-замки, видеодомофон"
+      }
+    }
+  },
+  "1014962274": {
+    "text_hash": "f57f4de94bff28eaeda9d6baf13a780340f67c16ce8b0945e7f7ef8b5a08d646",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "мебель",
+        "чистый ремонт"
+      ],
+      "extra_attributes": {
+        "location": "дипломатический и культурный центр столицы",
+        "security": "многоуровневая охрана и консьерж-сервис",
+        "metro": "ближайшие парки и достопримечательности в 2–3 минутах пешком",
+        "infrastructure": "город в городе, супермаркеты, кофейни, рестораны, медицинские центры и т.д.",
+        "transport": "выезд на проспект Тәуелсіздік и мосты через реку Есиль"
+      }
+    }
+  },
+  "1014867758": {
+    "text_hash": "5b9ddf54a832d3afb5e1bd08773d136b034a6cdc4b08ebbb7ee47f667b307f36",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "пушистые ковры",
+        "красивая посуда",
+        "фильтр для воды",
+        "аккуратный и чистый ремонт"
+      ],
+      "extra_attributes": {
+        "view": "прекрасный вид на праздничные салюты",
+        "metro": "в сердце города",
+        "security": "не указано",
+        "pets": "не указано",
+        "parking": "не указано",
+        "balcony": "не указано"
+      }
+    }
+  },
+  "672378691": {
+    "text_hash": "7f76f7b2b0d68efdc9d4ff141cf129d67cd8bce16c050d470fdfcb5142d8414a",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "metro": "Левый берег",
+        "view": "набережная",
+        "pets": "семейным",
+        "security": "не указано"
+      }
+    }
+  },
+  "761947756": {
+    "text_hash": "8b8381897ee5cbcf7bb0ded0fd68b17921633b1fde4d89f35eb64c90ab8015c0",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "евро-двушка",
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "metro": "рядом Пирамида",
+        "balcony": "не указано",
+        "security": "закрытая территория"
+      }
+    }
+  },
+  "1015060713": {
+    "text_hash": "a5af81e7d77dc3210aea43032729f62f77cc067625e2e2e696a93f39ba4ddfa9",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "мебель": "частично"
+      }
+    }
+  },
+  "1015022856": {
+    "text_hash": "2990ba7830899e0fe15661d67894aebf1d90ee1b33ca456ceb7a5f1858251c27",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "ЕВРОЕМОНТ",
+        "В стиле минимализма",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "metro": "Барыс Ареной",
+        "school": "Школа. Зерде №-9. Гимназия №-111",
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "balcony": "не указано",
+        "security": "заботливый КСК",
+        "location": "р-не. Нура",
+        "infrastructure": "прогулочные аллеи, парк, набережная, школы и детские сады",
+        "transport": "удобная транспортная развязка"
+      }
+    }
+  },
+  "1014542148": {
+    "text_hash": "47e9f64f2ae2ab9cf86e73029db2af9307d073391ae481137d299e2f81d138a6",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "pets": "не рассматриваем",
+        "security": "не указано",
+        "view": "не указано",
+        "metro": "не указано",
+        "balcony": "не указано",
+        "parking": "не указано"
+      }
+    }
+  },
+  "1013597537": {
+    "text_hash": "3cbb9bb3afcda392f9098d298b42bd515ca2c26f4e8e80b67d599e2b5375dac6",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "metro": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "1015060293": {
+    "text_hash": "0dc53cb72ded2dd1c51f71d132d6a9b607f0c9dc85e7f4805dbae2dd81a12346",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "евро ремонт"
+      ],
+      "extra_attributes": {
+        "metro": "рядом",
+        "view": "не указан",
+        "balcony": "не указан",
+        "security": "не указан",
+        "pets": "не указан",
+        "parking": "не указан",
+        "infrastructure": "развитая инфраструктура, рядом детские сады, школы, мечеть, университеты"
+      }
+    }
+  },
+  "1015059981": {
+    "text_hash": "4d195f1b3455e8e6a24af61da3299575630c3282bd43d2f8d53344719f27be7e",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "metro": "1 минута от остановки автобусов на главной дороге",
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "1009037607": {
+    "text_hash": "495a086cc80f71d45f7dbe44e68ed7a57057a4fc378e4180c5798840efae10dc",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "metro": "остановка",
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "balcony": "не указано",
+        "security": "не указано",
+        "детская_площадка": "есть",
+        "школы": "рядом",
+        "дет_сады": "рядом",
+        "магазины": "рядом",
+        "тц": "рядом"
+      }
+    }
+  },
+  "1014865673": {
+    "text_hash": "596eff985df3d1852894fd209ed898c8052857984d467089bad0c3799e42e5ca",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "view": "на бульвар Нурлы Жол",
+        "metro": "рядом с Байтереком",
+        "parking": "имеется",
+        "pets": "не указано",
+        "security": "не указано",
+        "balcony": "не указано"
+      }
+    }
+  },
+  "693549574": {
+    "text_hash": "48ee4bc72fefa224e32b1cf765d88bfdede0d2452fcd70fdc8c6a6f73d79d698",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "хороший ремонт"
+      ],
+      "extra_attributes": {
+        "view": "на Байтерек",
+        "metro": "рядом Talan Towers",
+        "pets": "не указано",
+        "parking": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "1014105456": {
+    "text_hash": "3da8cd3666b11c676991e9e43235813ab92a9d0609a4e86eba12be5009278fe8",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "pets": "не указано",
+        "parking": "есть парковочное место",
+        "view": "на улицу и во двор",
+        "metro": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "1014492079": {
+    "text_hash": "55afd1184dfcd00e212825a4a1233717ba12e87deb01823e62ae0c67a33fc2f1",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "pets": "всех рассмотрим"
+      }
+    }
+  },
+  "1015058218": {
+    "text_hash": "d09d2dad6fdc0e969eb677a35f72823b72125003763b31ae9921c20a4f866fd6",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "metro": "рядом университет КазГЮУ",
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "694863860": {
+    "text_hash": "cb7c86219afd2052c024c2c9a74f6e311cd0be08e70875eae6fafeaea7657439",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "metro": "Анвар, Ботанический сад, Абу даби",
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "687401750": {
+    "text_hash": "dfef67d1890db0bb26cf847e8cfa3ee2d8f32cd136d982f47d4cf77d423b95d6",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "ютная квартира",
+        "полностью мебель"
+      ],
+      "extra_attributes": {
+        "metro": "рядом",
+        "parking": "входит",
+        "view": "парк, набережная, триатлон парк",
+        "security": "не указано"
+      }
+    }
+  },
+  "1014533235": {
+    "text_hash": "bb3a97a46d62ff187e1301985f189296c1a5260854e3f5f571fd0d066b14c8e1",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "metro": "ЭКСПО"
+      }
+    }
+  },
+  "762286266": {
+    "text_hash": "03325bec9d5b2a8ca4e7592503fa334a9a42ba2e102ca868c31cca45d5ea86b0",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "metro": "Площадь",
+        "view": "Парк",
+        "pets": "не указано",
+        "parking": "не указано",
+        "security": "не указано",
+        "balcony": "не указано"
+      }
+    }
+  },
+  "1010618481": {
+    "text_hash": "1f14e11be552cf4fa82a5f8a9999b3fedc1aa123b73ed64ea9c4721a8840cdc9",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [
+        "мебель новая",
+        "полностью упакованная"
+      ],
+      "extra_attributes": {
+        "metro": "рядом подьезды",
+        "parking": "нет",
+        "view": "нет",
+        "balcony": "нет",
+        "security": "нет",
+        "pets": "нет",
+        "school": "рядом школа",
+        "kindergarten": "рядом детский сад",
+        "university": "рядом университеты",
+        "shopping": "рядом супермаркеты, аптека, ателье, магазины"
+      }
+    }
+  },
+  "1013952746": {
+    "text_hash": "a12962eec38266de214021f9ec0a60c1b445fcc03485ec6f2c4c3d5d00bb7103",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "pets": "без животных",
+        "smoking": "некурящим"
+      }
+    }
+  },
+  "1014697855": {
+    "text_hash": "a1f9680fe94d05e0bcf0189411bf5e9766bae7aaeabeb23ff368403b711094f8",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "дизайнерский ремонт",
+        "современная оборудованная кухня",
+        "встроенная техника"
+      ],
+      "extra_attributes": {
+        "metro": "рядом Шарль де Голль",
+        "view": "тихий внутренний переулок",
+        "parking": "не указано",
+        "security": "не указано",
+        "pets": "не указано",
+        "balcony": "не указано"
+      }
+    }
+  },
+  "1013456106": {
+    "text_hash": "0b66bd9c13a71ed422a4f283218689f05df4a2b82f1707944ff98fc55f9320a4",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "pets": "Семейным",
+        "furniture": "полностью"
+      }
+    }
+  },
+  "1012009177": {
+    "text_hash": "6909e11024ed70b1070072d162a4e3949af4f39099dfa6233895808aa20ac6f0",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "metro": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "1006987184": {
+    "text_hash": "924898616d6bf00c990ed08db518ce4b63591d9459291841220d7662a47a134e",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "евродвушка",
+        "новая стиральная машина",
+        "новый телевизор с функцией SMART TV",
+        "рабочая зона с выводом для UTP кабеля",
+        "высокоскоростной интернет 500мбит / сек",
+        "встроенный закрытый паркинг для авто",
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "pets": "без животных",
+        "parking": "встроенный закрытый паркинг для авто",
+        "metro": "автобусная остановка вблизи",
+        "security": "двор и подьезды убирают ежедневно",
+        "view": "много зелени и деревьев",
+        "balcony": null,
+        "bedrooms": "2",
+        "min_rent_period": "1 год",
+        "deposit": "300к",
+        "utilities": "интернет и коммуналка оплачиваются отдельно",
+        "available_from": "25 августа"
+      }
+    }
+  },
+  "1015041344": {
+    "text_hash": "437b865ae42afdcd2c5c98d252db8c27bb1e811e1f2b797d2a08ff865620a9ee",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [
+        "мебель: полностью"
+      ],
+      "extra_attributes": {
+        "metro": "рядом 35, 60 школы, Абырой спорт комплекс, Магнум, Смолл",
+        "deposit": "50 тыс возвратный",
+        "realtor_fee": "25%"
+      }
+    }
+  },
+  "1015049391": {
+    "text_hash": "bba35e5031773bdf6cdd02a58a7a38dd354e99b2587a0ac38eed35324ac9a612",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [
+        "мебель: полностью"
+      ],
+      "extra_attributes": {
+        "metro": "рядом 35, 60 школы, Абырой спорт комплекс, Магнум, Смолл",
+        "deposit": "50 тыс возвратный",
+        "realtor_fee": "25%"
+      }
+    }
+  },
+  "1014986675": {
+    "text_hash": "b67a84a96e8f5453803d453ad355221832218a5aae7b6b0e9e04108d34e7c51a",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "metro": "остановка ЛРТ рядом",
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "1014051739": {
+    "text_hash": "179045146dd08b63d7e9b48ce99348ee0b26f57d2108ec962218e618d5c648dc",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "качественный мебель",
+        "встроенная техника от лучших производителей"
+      ],
+      "extra_attributes": {
+        "location": "в центре",
+        "park": "рядом 2 парка",
+        "store": "рядом круглосуточный магазин",
+        "entrance": "вход со стороны улицы Акмешит",
+        "elevator": "есть 2 лифта",
+        "storage": "достаточно места для хранения",
+        "bedroom": "большая 2 спальня с отсеком для хранения",
+        "wardrobe": "большой угловой шкаф + мини шкафчик с полочками",
+        "toilet_table": "туалетный столик",
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "metro": "не указано",
+        "balcony": "не указано",
+        "security": "не указано",
+        "deposit": "100 000"
+      }
+    }
+  },
+  "1015058500": {
+    "text_hash": "0824e0f8c3a9111df4ab75f864ccf926a798a3cf8e2ed4a0c36629ac2253ad95",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "metro": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "694670594": {
+    "text_hash": "ad74f4bae0d2cd358e84afe0cdd94b7b4c2f0558b6046abceb9b68f4929e211d",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "новая мебель",
+        "свежий ремонт"
+      ],
+      "extra_attributes": {
+        "мебель": "полностью"
+      }
+    }
+  },
+  "1015053390": {
+    "text_hash": "b14b1b26d926511816fd1b90d19007f02cceb7161fe588feedcc80158d423826",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "дизайнерский ремонт",
+        "современный дизайнерский ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "pets": "не указано",
+        "parking": "подземный паркинг",
+        "view": "много естественного света",
+        "metro": "рядом Mega Silk Way",
+        "balcony": "не указано",
+        "security": "закрытая охраняемая территория 24/7, видеонаблюдение"
+      }
+    }
+  },
+  "1014810199": {
+    "text_hash": "881c0abdb7d129c93da3e9a747cba9dfaea5831a2cdd4043104b530cd2a65012",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "стильный дизайн",
+        "панорамный вид",
+        "стильные шкафы с подсветкой и матовым полупрозрачным стеклом",
+        "большое зеркало с подсветкой",
+        "атмосферная подсветка",
+        "настоящий камин с мраморной облицовкой",
+        "кухня полностью укомплектована",
+        "большой холодильник",
+        "духовка",
+        "большая посудомоечная машина",
+        "микроволновка",
+        "вся необходимая техника"
+      ],
+      "extra_attributes": {
+        "view": "панорамный вид",
+        "pets": "не указано",
+        "parking": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "1014453909": {
+    "text_hash": "280750065f5b7265cfcd118743f81dd2626ed19e82b44dc8c882a298fd761fe0",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "мебель": "полностью"
+      }
+    }
+  },
+  "1013955678": {
+    "text_hash": "e0cdbb9f284b0872fe19f9ea341b4ca6eeaa6f99f56f91c3a00858a527bb220a",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "metro": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "1014399026": {
+    "text_hash": "eacb0479b67ed93c474d5efa4c5b21020444c63499a4edb6adb257463c613302",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "новая бытовая техника",
+        "кондиционер",
+        "гардеробная в спальне",
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "metro": "остановка",
+        "view": "в шаговой доступности: ТЦ, школа, остановка",
+        "pets": "не указано",
+        "parking": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "1014997227": {
+    "text_hash": "991e771a55eadccbda06b1efa3f7019afdbcb4f79183f3da463fa1e02dd11492",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "аккуратный и чистый ремонт"
+      ],
+      "extra_attributes": {
+        "metro": "LRT Tarlan Astana",
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "1014476754": {
+    "text_hash": "1607f4296dfe1647d0bbb9751c1194c9dcff11c8cb77e241366f377560f00e29",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "metro": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "1014077089": {
+    "text_hash": "29c530bd93c589e9d7210bd7363a0b2394cc07b91f3b2d2611af2903d45ed856",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "мебель: полностью",
+        "фильтр для воды"
+      ],
+      "extra_attributes": {
+        "pets": "без животных",
+        "metro": "5 минут пешком до Байтерека",
+        "view": "напротив Абу-Даби плазы",
+        "security": "дом напротив Мин Обороны",
+        "balcony": null,
+        "parking": null
+      }
+    }
+  },
+  "50588844": {
+    "text_hash": "f2d929d5ec555b72b1c8c7baf9bd45140238052db06ad6dc50b740d62b98f269",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "metro": "Рыскулова"
+      }
+    }
+  },
+  "30431518": {
+    "text_hash": "8bb08e39b21bf28b38a55cfd6972069d68e6dbc454118f106090212e582a063c",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "parking": "парковка для автомобиля с двух сторон дома",
+        "view": "городская больница 1, аптека, химчистка, мойка авто, магазины Магнум и СтройМАРТ",
+        "pets": "сдаю семейным без детей или с девушками"
+      }
+    }
+  },
+  "1014058834": {
+    "text_hash": "473575796f0e6cda1eb2c93ec1c204128a9f922d6c3229a5b6e4f141fb7495bb",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {}
+    }
+  },
+  "1014671342": {
+    "text_hash": "c73776399ba6ad17705582a93446833fab8dd5af9919ee03e5b41c69e352c086",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "pets": "без животных",
+        "metro": "удобная транспортная развязка",
+        "school": "школа «Бином»",
+        "kindergarten": "детские сады",
+        "shopping": "магазины в шаговой доступности",
+        "shopping_center": "ТРЦ «Хан Шатыр»"
+      }
+    }
+  },
+  "681750366": {
+    "text_hash": "16ab4e72b4c412da08076dd8ef2bfe4e7c6676092ba54f078ffde51bfe964c88",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "pets": "можно с детьми",
+        "metro": "рядом развития инфраструктура",
+        "security": "чистоплотной, платежеспособной семейной паре"
+      }
+    }
+  },
+  "1010415340": {
+    "text_hash": "d22388c2e2ca713f32eed9372499ddcad5ba993fb1a5b68e42884cb4ac46e35f",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "metro": "рядом остановки общественного транспорта",
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "1015046649": {
+    "text_hash": "04d373308204513bbe28d3d7a39b2ca50c02da576813fc4ec9906d0ab2757841",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "metro": "не указано",
+        "balcony": "не указано",
+        "security": "есть охрана",
+        "wifi": "100 мбс",
+        "kitchen": "на каждом этаже",
+        "events": "раз в неделю (пицца, караоке, шахматы и т.д.)",
+        "furniture": "полностью",
+        "repair": "не новый, но аккуратный и чистый"
+      }
+    }
+  },
+  "1014982294": {
+    "text_hash": "84ba6bd46083ea8a6831efce50f6ad3c4bde87818509aa9e188268fbb0cb25b3",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "чистый ремонт"
+      ],
+      "extra_attributes": {
+        "metro": "рядом",
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "1015066202": {
+    "text_hash": "cd4486ee1be756ec1857fb0a61ead5797eae6ae6aa0ab60e29b55de117c09584",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "pets": "без детей",
+        "metro": "в 10 минутах от трц Хан шатыр",
+        "view": "вдоль аллеи green line",
+        "security": "вход в подъезд с проезжей части так же со двора",
+        "school": "школы, дет садики рядом",
+        "shopping": "кафе и магазины, ТД Тумар не далеко"
+      }
+    }
+  },
+  "1013979019": {
+    "text_hash": "e7b64ae8bdff5b74231724e22289bf23ef185f998a528154bbeb8d50c29575ba",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "Smart TV",
+        "диван (покупали за 700 000 ₸)"
+      ],
+      "extra_attributes": {
+        "pets": "не прокуренная",
+        "security": "не указано",
+        "metro": "не указано",
+        "view": "не указано",
+        "balcony": "не указано",
+        "parking": "не указано"
+      }
+    }
+  },
+  "1014712625": {
+    "text_hash": "df7960cab1452ccbe368d8afd8d1e2e90760bb2fd4717f74e32bb1afe2d42a9d",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "евроремонт",
+        "новая мебель",
+        "Smart TV",
+        "быстрый Wi-Fi",
+        "посудомоечная машина",
+        "холодильник",
+        "стиральная машина",
+        "фильтр для воды",
+        "кулер",
+        "утюг",
+        "фен",
+        "вместительные шкафы"
+      ],
+      "extra_attributes": {
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "metro": "рядом остановки общественного транспорта",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "1015046496": {
+    "text_hash": "38592c3867d6ace06f4fe7ea4f1bd9e7c068fbcec976b2ecb7680543d0266530",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "pets": "не указано",
+        "parking": "есть",
+        "view": "не указано",
+        "metro": "не указано",
+        "balcony": "не указано",
+        "security": "отличный и безопасный двор"
+      }
+    }
+  },
+  "697077506": {
+    "text_hash": "0a4ee863bb5ee213e4245f5f1ef83bb34c687b02fb0ddf24d9d97230533f4790",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [
+        "мебель",
+        "посудомойка",
+        "автоматическая стиральная машинка",
+        "кондиционеры"
+      ],
+      "extra_attributes": {
+        "депозит": "один арендный платеж",
+        "коммунальные_расходы": "за счет арендатора",
+        "мебель": "полностью"
+      }
+    }
+  },
+  "1014836411": {
+    "text_hash": "1888e48178455b70013881c81ecd1303d5c6422d0637df9e83775843d96ef578",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "мебель: полностью",
+        "не новый, но аккуратный и чистый ремонт"
+      ],
+      "extra_attributes": {
+        "metro": "рядом станция ЛРТ",
+        "view": "окна во двор",
+        "pets": "не указано",
+        "parking": "не указано",
+        "security": "не указано",
+        "balcony": "не указано"
+      }
+    }
+  },
+  "1014042257": {
+    "text_hash": "580334793266de3daca45669ec0db59cf7e04f3e914a2b6f9474106da9ae5c9e",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "современный новый ремонт",
+        "дизайнерский подъезд",
+        "кондиционер с функцией «без сквозняка»",
+        "розетки с USB, Type-C и беспроводная",
+        "увеличенные окна с москитными сетками",
+        "полноценная ванная 180*80 с тропическим душем и встроенным термостатом",
+        "отдельная гардеробная",
+        "современная мебель"
+      ],
+      "extra_attributes": {
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "metro": "около 13 минут пешком до станции LRT",
+        "balcony": "не указано",
+        "security": "закрытый безопасный двор, круглосуточная охрана, электронные замки и система Face ID"
+      }
+    }
+  },
+  "1015067294": {
+    "text_hash": "f2a76b536745e4242b4bafdf5eb2572b72abc9c3d9e5c64a1e37f091d245ef65",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "аккуратный и чистый ремонт",
+        "полностью мебель"
+      ],
+      "extra_attributes": {
+        "metro": "ЛРТ",
+        "view": "не указан",
+        "security": "закрытый ухоженный двор",
+        "pets": "не указан",
+        "parking": "не указан",
+        "balcony": "не указан",
+        "school": "школа (93) (83)",
+        "kindergarten": "детский сад (81)",
+        "shopping": "ТРЦ ДАМУ МОЛЛ",
+        "religious": "Мечеть Хазрет Султан",
+        "cultural": "Национальный Музей РК",
+        "government": "Дворец независимости",
+        "park": "Мынжылдық Парк",
+        "presidential": "Президентский Парк"
+      }
+    }
+  },
+  "1014069788": {
+    "text_hash": "57f627346a6f2895fcf790e7c9c40d0c2938d5193104b1ee32a2b098075a363e",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {}
+    }
+  },
+  "1014023973": {
+    "text_hash": "04fc2448fc960396ec76c59ed5d11470ee9df94c849f991d79f7f931b1cde255",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "deposit": "возвратный",
+        "legal_assistance": "гарантировано",
+        "agent_fee": "70000 тенге"
+      }
+    }
+  },
+  "1014021882": {
+    "text_hash": "abfdfa7b5bac306d7d0f4800418ab75cee80ba5c31a2a4df81a636f2837de764",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {}
+    }
+  },
+  "1015067350": {
+    "text_hash": "621884626c101b020d9827167719d985875f0a4346397aef97d2cb2bf3134d6d",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "мебель": "полностью"
+      }
+    }
+  },
+  "1014876309": {
+    "text_hash": "0a0b433534b4e9da960cae25619ba3c73556c998f19e1a440c0203d4aa28317e",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "metro": "не указано",
+        "school": "школа Бином",
+        "university": "КазГЮУ",
+        "shopping_center": "ТРЦ Хан шатыр"
+      }
+    }
+  },
+  "1014644548": {
+    "text_hash": "5676a7d990e0b441a49df885c0ab3292660372f1afa62b5b07f53d595ab1b0e6",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "стиральная машинка LG на 7кг",
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "pets": false,
+        "parking": false,
+        "metro": false,
+        "view": "",
+        "balcony": false,
+        "security": false
+      }
+    }
+  },
+  "1014027482": {
+    "text_hash": "a3f97ce3b5a067e458293ed98f61809892539691c3b37594fdd23acc145f05d4",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "pets": null,
+        "parking": null,
+        "view": null,
+        "metro": null,
+        "balcony": null,
+        "security": null
+      }
+    }
+  },
+  "1014024995": {
+    "text_hash": "83f38e38b761a1e50f4c0821ede97a0141a879408ec668b48c729bed44568db8",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {}
+    }
+  },
+  "1015068076": {
+    "text_hash": "b3d15d3c813206609b6af8882532c1176d37143498de9c22a442d595e4508157",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {}
+    }
+  },
+  "1015067909": {
+    "text_hash": "d5b07370506dbdc7ee8e0ab7bb054bb9a9304d58fa9d6ded42afc8ecc634873f",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "pets": "не указано",
+        "parking": "входит в стоимость",
+        "view": "во двор и на школу",
+        "metro": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "682274738": {
+    "text_hash": "ee425ddf5805c57b42172e0bf9a5c871b903fead99540f0d33f80f9d1c39316e",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "не новый, но аккуратный и чистый ремонт"
+      ],
+      "extra_attributes": {
+        "pets": null,
+        "parking": null,
+        "view": "на дом министерств",
+        "metro": "В двух шагах Байтерек",
+        "balcony": null,
+        "security": null,
+        "school": "школа № 66",
+        "nearby_institutions": "МИД, Минобороны",
+        "shopping_centers": "ТРЦ Керуен"
+      }
+    }
+  },
+  "1015071680": {
+    "text_hash": "db71a1a5fbe3c0f24b38c3cc050ad839299f4629bf10ccc149584f2c86b2a87d",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {}
     }
   }
 }

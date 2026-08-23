@@ -22,8 +22,34 @@ Stage 3 — объективная оценка цена/качество для
     - СПРАВЕДЛИВАЯ — находится около ожидаемого рынка;
     - ПЕРЕОЦЕНЕНА — заметно выше ожидаемого рынка;
     - НЕДОСТАТОЧНО ДАННЫХ — сравнение слишком слабое;
+    - ТРЕБУЕТ ПРОВЕРКИ — скидка аномально большая (>= SUSPICIOUS_DIFF_THRESHOLD)
+      И одновременно уверенность базы низкая или описание скудное. Это НЕ
+      "находка": настолько большой разрыв при слабых входных данных чаще
+      означает ошибку когорты (не тот finish_type, шумная/маленькая когорта)
+      или необъявленный дефект, чем реально отличную цену. Отличается от
+      РУЧНАЯ ПРОВЕРКА тем, что здесь нет red_flag — есть только подозрительно
+      хорошая математика;
     - РУЧНАЯ ПРОВЕРКА — есть серьёзный red flag, который нельзя честно
       превращать в ценовую скидку автоматически.
+
+Уровни когорты (build_cohort), от точного к широкому:
+    L1/2  — тот же ЖК, та же комнатность.
+    L2b   — тот же street+house_num, та же комнатность (тот же дом,
+            даже если complex_key не проставлен).
+    L2.5  — тот же ЖК, ДРУГАЯ комнатность; price_m2 сравнимых объявлений
+            пересчитывается через отношение городских медиан по
+            комнатности. Специально сконструирован НЕ через price_segment
+            (в отличие от L3), чтобы не заводить циркулярность: сегмент
+            цели сам вычисляется из городских квантилей price_m2, то есть
+            использование сегмента для сравнения — это использование
+            производной от цены величины, чтобы судить о самой цене.
+            L2.5 отбирает когорту чисто структурно (тот ЖК, другая
+            комнатность) и только потом один раз применяет городской (не
+            локальный) коэффициент пересчёта — цена конкретного дома
+            никак не влияет на свой же бенчмарк.
+    L3    — та же улица, та же комнатность, тот же price_segment.
+    L4/L5 — радиус 1км/3км с сужением по цене на L5.
+    L6    — весь город, та же комнатность/чистовая.
 
 Важно:
     Stage 3 не утверждает, что квартира "хорошая" только потому, что она
@@ -40,6 +66,7 @@ Stage 3 — объективная оценка цена/качество для
 import argparse
 import csv
 import math
+import re
 import statistics
 import sys
 
@@ -47,7 +74,17 @@ import sys
 # ============================== CONFIG ==============================
 
 N_MIN = 8
-MIN_USABLE_COHORT = 3
+# Minimum cohort size is differentiated by level: L1/2/2b are tight,
+# high-precision matches (same complex/building) where even n=3 is
+# informative. L3 (street, no house number) and the radius-based L4/L5
+# are progressively looser matches with more inherent heterogeneity, so
+# they need more listings before the median is trustworthy.
+MIN_COHORT_L12 = 3
+MIN_COHORT_L2B = 3
+MIN_COHORT_L25 = 4
+MIN_COHORT_L3 = 4
+MIN_COHORT_L4 = 5
+MIN_COHORT_L5 = 6
 
 RADIUS_L4_KM = 1.0
 RADIUS_L5_KM = 3.0
@@ -70,6 +107,20 @@ OVERPRICE_THRESHOLD_HIGH_CONF = -0.07
 OVERPRICE_THRESHOLD_MED_CONF = -0.10
 OVERPRICE_THRESHOLD_LOW_CONF = -0.15
 
+# An apparent discount this large, combined with weak confidence or a thin
+# listing, is more often a sign that the cohort is wrong (bad finish_type
+# match, tiny/noisy cohort, undeclared defect) than a sign that the
+# apartment is genuinely a great deal. Above this threshold under those
+# conditions we downgrade НАХОДКА to a review verdict instead of getting
+# MORE confident the bigger the gap gets.
+SUSPICIOUS_DIFF_THRESHOLD = 0.25
+SUSPICIOUS_DIFF_CONF_FLOOR = 0.55
+THIN_DESCRIPTION_WARNINGS = {"finish_type_неизвестен", "нет_фото", "мало_фото"}
+
+
+def is_thin_description(warnings):
+    return bool(THIN_DESCRIPTION_WARNINGS.intersection(warnings))
+
 OUTPUT_EXTRA_FIELDNAMES = [
     "status",
     "verdict",
@@ -78,6 +129,7 @@ OUTPUT_EXTRA_FIELDNAMES = [
     "price_segment",
     "cohort_level",
     "cohort_size",
+    "cohort_dispersion",
     "confidence_weight",
     "benchmark_confidence",
     "is_extreme_floor",
@@ -312,35 +364,99 @@ def target_price_segment(target, pool):
 
 
 def build_cohort(target, pool, segments, citywide_median):
-    same_rooms = [
-        r for r in pool
-        if r["_rooms"] == target["_rooms"] and not same_target_id(r, target)
-    ]
-
-    if not same_rooms:
-        return "none", []
-
     # Do not silently treat unknown finish as finished. For a target with
     # unknown finish we allow finished+unknown only as a lower-confidence
-    # fallback, never rough+finished mixing.
+    # fallback, never rough+finished mixing. This filter now runs once, up
+    # front, against the WHOLE pool rather than an already room-filtered
+    # list: L2.5 below needs finish-matched rows of OTHER room counts, and
+    # deriving that from a same-room list would be empty by construction.
     target_finish = target["_finish_bucket"]
-    exact_finish = [r for r in same_rooms if r["_finish_bucket"] == target_finish]
     if target_finish == "unknown":
-        comparable_rooms = [r for r in same_rooms if r["_finish_bucket"] in {"finished", "unknown"}]
+        finish_matched = [
+            r for r in pool
+            if r["_finish_bucket"] in {"finished", "unknown"} and not same_target_id(r, target)
+        ]
     else:
-        comparable_rooms = exact_finish
+        finish_matched = [
+            r for r in pool
+            if r["_finish_bucket"] == target_finish and not same_target_id(r, target)
+        ]
 
-    if not comparable_rooms:
-        return "none", []
+    comparable_rooms = [r for r in finish_matched if r["_rooms"] == target["_rooms"]]
 
-    # L1/L2: same ЖК + rooms.
-    if target["_complex_key"]:
+    # L1/2: same ЖК + rooms.
+    if comparable_rooms and target["_complex_key"]:
         l12 = [
             r for r in comparable_rooms
             if r["_complex_key"] == target["_complex_key"]
         ]
-        if len(l12) >= MIN_USABLE_COHORT:
+        if len(l12) >= MIN_COHORT_L12:
             return "1-2", l12
+
+    # L2b: same street + house_num + rooms. Sits between complex-match and
+    # street-only match: complex_key is often missing or inconsistently
+    # tagged for older/non-branded buildings, but street+house_num pins
+    # down the literal same building just as precisely when both are
+    # present. Previously this signal was collected (house_num is scraped
+    # and used for baseline dedup) but never used for cohort matching, so
+    # anything without a complex_key fell straight through to street-only
+    # L3 and could mix a target with buildings blocks away on the same
+    # street.
+    target_house = target.get("house_num")
+    target_street = target.get("street")
+    if comparable_rooms and target_house and target_street:
+        l2b = [
+            r for r in comparable_rooms
+            if r.get("street") == target_street
+            and r.get("house_num") == target_house
+        ]
+        if len(l2b) >= MIN_COHORT_L2B:
+            return "2b", l2b
+
+    # L2.5: same ЖК, a DIFFERENT room count, price rescaled by the ratio of
+    # citywide medians between the target's room count and the
+    # comparable's room count. Exists so buildings with real room-mix
+    # diversity (many 1-bed, few 2-bed) get a precise, non-circular
+    # fallback before dropping down to street-level L3.
+    #
+    # Why this is non-circular where the L3/segment route isn't: L3
+    # matches by street + target_price_segment, and target_price_segment
+    # is itself derived from citywide price_m2 quantiles — i.e. it uses a
+    # price-derived label to help judge whether a price is good. L2.5
+    # never uses the target's own price to decide cohort membership;
+    # membership is purely structural (same ЖК, any room count other than
+    # the target's). Price only enters afterwards, to rescale comparables
+    # onto the target's room-count level via a CITYWIDE ratio — not a
+    # per-building one — so a building's own asking prices can't feed
+    # back into its own benchmark.
+    #
+    # These stay real listings, not a synthetic index: every field except
+    # _price_m2 is untouched, so robust_stats/estimate_floor_factor/etc.
+    # downstream consume an L2.5 cohort exactly like any other level.
+    if target["_complex_key"] and target["_rooms"] is not None:
+        target_room_median = citywide_median.get(target["_rooms"])
+        if target_room_median:
+            l25 = []
+            for r in finish_matched:
+                if r["_complex_key"] != target["_complex_key"]:
+                    continue
+                if r["_rooms"] is None or r["_rooms"] == target["_rooms"]:
+                    continue
+                if r["_price_m2"] is None:
+                    continue
+                other_room_median = citywide_median.get(r["_rooms"])
+                if not other_room_median:
+                    continue
+                scale = target_room_median / other_room_median
+                adjusted = dict(r)
+                adjusted["_price_m2"] = r["_price_m2"] * scale
+                adjusted["_rooms_source"] = r["_rooms"]
+                l25.append(adjusted)
+            if len(l25) >= MIN_COHORT_L25:
+                return "2.5", l25
+
+    if not comparable_rooms:
+        return "none", []
 
     # L3: same street + rooms + price segment.
     target_segment = target_price_segment(target, pool)
@@ -350,7 +466,7 @@ def build_cohort(target, pool, segments, citywide_median):
         and r.get("street") == target.get("street")
         and segments.get(r.get("id")) == target_segment
     ]
-    if len(l3) >= MIN_USABLE_COHORT:
+    if len(l3) >= MIN_COHORT_L3:
         return "3", l3
 
     # L4/L5: local radius.
@@ -363,7 +479,7 @@ def build_cohort(target, pool, segments, citywide_median):
                 r["_lat"], r["_lon"]
             ) <= RADIUS_L4_KM
         ]
-        if len(l4) >= MIN_USABLE_COHORT:
+        if len(l4) >= MIN_COHORT_L4:
             return "4", l4
 
         median_for_rooms = citywide_median.get(target["_rooms"])
@@ -380,7 +496,7 @@ def build_cohort(target, pool, segments, citywide_median):
                 and r["_price_m2"] is not None
                 and lo <= r["_price_m2"] <= hi
             ]
-            if len(l5) >= MIN_USABLE_COHORT:
+            if len(l5) >= MIN_COHORT_L5:
                 return "5", l5
 
     # L6: same rooms across the city.
@@ -501,7 +617,25 @@ def quality_evidence_score(target):
 
     premium = parse_jsonish(target.get("premium_markers"), [])
     if isinstance(premium, list):
-        score += min(15, 5 * len(premium))
+        # Was a flat +5 per listed marker (capped at 15, i.e. hit the
+        # ceiling at exactly 3 items regardless of content) — a pure
+        # word-count reward that let a listing rack up full marks just by
+        # naming three near-synonyms for the same one renovation
+        # ("евроремонт", "современный ремонт", "качественный ремонт").
+        # Fix has two parts: (1) case/whitespace-normalize and dedupe so
+        # literal repeats can't inflate the count at all, and (2) score
+        # the distinct count on a sub-linear (log) curve instead of a
+        # flat per-item rate, so the first distinct marker carries most
+        # of the weight and each additional one adds progressively less
+        # — rewarding genuine breadth of evidence without letting a
+        # longer, more repetitive listing simply out-count a shorter,
+        # equally strong one.
+        distinct_markers = {
+            re.sub(r"\s+", " ", str(m).strip().lower())
+            for m in premium
+            if str(m).strip()
+        }
+        score += round(min(15.0, 6.5 * math.log1p(len(distinct_markers))), 1)
     elif premium:
         score += 8
 
@@ -539,12 +673,49 @@ def quality_evidence_score(target):
     return round(max(0.0, min(100.0, score)), 1)
 
 
-def confidence_from_cohort(level, size):
+def cohort_homogeneity_factor(level, dispersion):
+    """Downweight confidence when the cohort spans too wide a price range
+    for its level to be believed at face value — e.g. a radius-based
+    cohort that's quietly straddling two different building qualities.
+
+    Thresholds are calibrated per level group, not globally: precise
+    levels (same complex/building/street+segment) run tight in practice
+    (median IQR/median ~0.11-0.12, p90 ~0.15-0.20 on the current baseline),
+    so the same dispersion that's unremarkable for a radius-based L4/L5
+    cohort (median ~0.21, p90 ~0.31) would already be an outlier at L1-3.
+    """
+    if dispersion is None:
+        return 1.0
+    if level in ("1-2", "2b", "3"):
+        moderate, severe = 0.22, 0.32
+    elif level == "2.5":
+        # Same tight physical locality as L1-3, but the rescale step adds
+        # its own noise (a citywide room-count ratio isn't guaranteed to
+        # hold exactly for one specific building), so give it a little
+        # more room before treating dispersion as suspicious.
+        moderate, severe = 0.26, 0.38
+    else:
+        moderate, severe = 0.33, 0.48
+    if dispersion >= severe:
+        return 0.55
+    if dispersion >= moderate:
+        return 0.8
+    return 1.0
+
+
+def confidence_from_cohort(level, size, dispersion=None):
     # Locality quality dominates. A large city-wide cohort is still weaker
     # than a small same-complex cohort.
     size_factor = min(1.0, math.log1p(max(size, 0)) / math.log1p(30))
     level_factor = {
         "1-2": 1.00,
+        "2b": 0.95,
+        # Below 2b (exact building) but above 3 (mere street match): L2.5
+        # keeps the strong same-ЖК locality signal, but the cross-room
+        # rescale is an extra inferential step L1-3 don't need, so it
+        # doesn't get to outrank a direct, unadjusted same-room street
+        # match.
+        "2.5": 0.80,
         "3": 0.90,
         "4": 0.78,
         "5": 0.62,
@@ -552,7 +723,9 @@ def confidence_from_cohort(level, size):
         "none": 0.0,
     }.get(level, 0.25)
 
-    return round(max(0.0, min(1.0, 0.35 * size_factor + 0.65 * level_factor)), 3)
+    base = 0.35 * size_factor + 0.65 * level_factor
+    base *= cohort_homogeneity_factor(level, dispersion)
+    return round(max(0.0, min(1.0, base)), 3)
 
 
 def quality_confidence(target):
@@ -604,7 +777,7 @@ def price_quality_label(diff_pct, quality_score, warnings):
     return label
 
 
-def verdict_from_diff(diff_pct, benchmark_confidence, target):
+def verdict_from_diff(diff_pct, benchmark_confidence, target, warnings):
     if diff_pct is None:
         return "НЕДОСТАТОЧНО ДАННЫХ", "нет устойчивой рыночной базы"
 
@@ -623,6 +796,16 @@ def verdict_from_diff(diff_pct, benchmark_confidence, target):
         over_t = OVERPRICE_THRESHOLD_LOW_CONF
 
     if diff_pct >= find_t:
+        if diff_pct >= SUSPICIOUS_DIFF_THRESHOLD and (
+            benchmark_confidence < SUSPICIOUS_DIFF_CONF_FLOOR
+            or is_thin_description(warnings)
+        ):
+            return (
+                "ТРЕБУЕТ ПРОВЕРКИ",
+                f"аномально большая скидка ({diff_pct:.1%}) при низкой уверенности "
+                f"базы или скудном описании — вероятнее ошибка когорты/скрытый "
+                f"дефект, чем настоящая находка",
+            )
         return "НАХОДКА", f"цена ниже скорректированной базы на {diff_pct:.1%}"
     if diff_pct <= over_t:
         return "ПЕРЕОЦЕНЕНА", f"цена выше скорректированной базы на {abs(diff_pct):.1%}"
@@ -676,16 +859,22 @@ def score_row(target, pool, segments, citywide_median, soft_target=True):
             "data_confidence": 0.0,
         }
 
-    # Finished and rough are never mixed.
-    same_bucket_pool = [
+    # Finish matching happens inside build_cohort, not here. This pool only
+    # excludes self and baseline-ineligible rows. (Previously this function
+    # ALSO hard-filtered by finish_bucket before calling build_cohort, which
+    # silently defeated the finished+unknown leniency build_cohort already
+    # implements for targets with unknown finish — that branch could never
+    # fire because non-matching finishes had already been removed one level
+    # up. Rough/finished are still never mixed; that filtering now happens
+    # once, correctly, inside build_cohort itself.)
+    cohort_pool = [
         r for r in pool
-        if r["_finish_bucket"] == target["_finish_bucket"]
-        and not same_target_id(r, target)
+        if not same_target_id(r, target)
         and not r.get("_excluded_baseline")
     ]
 
     level, cohort = build_cohort(
-        target, same_bucket_pool, segments, citywide_median
+        target, cohort_pool, segments, citywide_median
     )
 
     if not cohort:
@@ -740,12 +929,13 @@ def score_row(target, pool, segments, citywide_median, soft_target=True):
     else:
         robust_z = None
 
-    benchmark_conf = confidence_from_cohort(level, len(cohort))
+    dispersion = (iqr / base_price_m2) if (iqr is not None and base_price_m2) else None
+    benchmark_conf = confidence_from_cohort(level, len(cohort), dispersion)
     data_conf = quality_confidence(target)
     combined_conf = round(0.72 * benchmark_conf + 0.28 * data_conf, 3)
 
     verdict, verdict_reason = verdict_from_diff(
-        diff_pct, combined_conf, target
+        diff_pct, combined_conf, target, warnings
     )
 
     # "value_score" is intentionally monotonic in diff_pct, but compressed
@@ -776,6 +966,7 @@ def score_row(target, pool, segments, citywide_median, soft_target=True):
         "price_segment": target_price_segment(target, pool),
         "cohort_level": level,
         "cohort_size": len(cohort),
+        "cohort_dispersion": round(dispersion, 4) if dispersion is not None else None,
         "confidence_weight": round(min(1.0, len(cohort) / N_MIN), 2),
         "benchmark_confidence": benchmark_conf,
         "is_extreme_floor": target["_is_extreme_floor"],
