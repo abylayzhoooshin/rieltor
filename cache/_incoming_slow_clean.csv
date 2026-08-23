@@ -1,188 +1,56 @@
 ﻿id,url,title,price,price_m2_text,price_m2,rooms,square_m2,floor,floor_total,district,city,street,house_num,latitude,longitude,complex_id,complex_alias,complex_name,furniture,rent_renovation,priv_dorm,bathrooms_count,kitchen_studio,suited_for,full_description,photo_urls,photo_count,photo_set_hash,seller_type,owner_name,is_identity_confirmed,published_date,created_at,added_at,storage,scraped_at,old_price,new_price,price_drop,detected_at,source,reason,incoming_data_warnings,incoming_requires_manual_review,finish_type,red_flags,premium_markers,extra_attributes,requires_manual_review,llm_skipped_error
-1014022539,https://krisha.kz/a/show/1014022539,2-комнатная квартира · 50 м²,250000.0,за месяц,6000,2,50.0,,,Esilyskiy_r-n,Astana,Turkestan,28,51.102055287173,71.424072917358,,,,,,,,,,"• Евродвушка 
+1014021882,https://krisha.kz/a/show/1014021882,3-комнатная квартира · 70 м²,250000.0,за месяц,3714,3,70.0,,,r-n_Baykonur,Astana,Gabdullina,,51.159067372795,71.435130241456,,,,,,,,,,"📑 Условия: 
 • Коммунальные услуги отдельно 
 • Депозит 
 • Агентское сопровождение сделки-20% 
 ⚖️ Юридическое оформление и прозрачность гарантированы 
-✨ Всё по закону, честно и с заботой о вас 💫","[""https://krisha-photos.kcdn.online/webp/bd/bdba2b0f-a599-487d-9664-bdc17d2b1464/125-full.jpg"", ""https://krisha-photos.kcdn.online/webp/bd/bdba2b0f-a599-487d-9664-bdc17d2b1464/127-full.jpg"", ""https://krisha-photos.kcdn.online/webp/bd/bdba2b0f-a599-487d-9664-bdc17d2b1464/126-full.jpg"", ""https://krisha-photos.kcdn.online/webp/bd/bdba2b0f-a599-487d-9664-bdc17d2b1464/123-full.jpg"", ""https://krisha-photos.kcdn.online/webp/bd/bdba2b0f-a599-487d-9664-bdc17d2b1464/124-full.jpg"", ""https://krisha-photos.kcdn.online/webp/bd/bdba2b0f-a599-487d-9664-bdc17d2b1464/128-full.jpg""]",6,b400f7fac95b464efbf2977ae9b48eb3daaf901ea42830e67fd88b4f89afd544,,Алихан  Борамбаев,False,2026-08-13,2026-07-17,2026-08-13,live,2026-08-23T14:33:36+00:00,400000.0,250000.0,150000.0,2026-08-23T14:35:20+00:00,slow_track,price_drop,[],False,,[],[],{},False,False
-1014416232,https://krisha.kz/a/show/1014416232,2-комнатная квартира · 50 м²,180000.0,за месяц,4200,2,50.0,,,Almaty_r-n,Astana,Abylayhana,20B,51.155147159132,71.481279474329,,,,,,,,,,"📑 Условия: 
-• Коммунальные услуги отдельно 
-• Депозит 
+✨ Всё по закону, честно и с заботой о вас 💫","[""https://krisha-photos.kcdn.online/webp/cb/cb0a3fd8-8d4b-4f6c-874f-fe73a9898c6d/76-full.jpg"", ""https://krisha-photos.kcdn.online/webp/cb/cb0a3fd8-8d4b-4f6c-874f-fe73a9898c6d/80-full.jpg"", ""https://krisha-photos.kcdn.online/webp/cb/cb0a3fd8-8d4b-4f6c-874f-fe73a9898c6d/77-full.jpg"", ""https://krisha-photos.kcdn.online/webp/cb/cb0a3fd8-8d4b-4f6c-874f-fe73a9898c6d/78-full.jpg"", ""https://krisha-photos.kcdn.online/webp/cb/cb0a3fd8-8d4b-4f6c-874f-fe73a9898c6d/81-full.jpg"", ""https://krisha-photos.kcdn.online/webp/cb/cb0a3fd8-8d4b-4f6c-874f-fe73a9898c6d/79-full.jpg"", ""https://krisha-photos.kcdn.online/webp/cb/cb0a3fd8-8d4b-4f6c-874f-fe73a9898c6d/82-full.jpg""]",7,d43eb5393c1d68705cac19f3e5e97e200f2895130121664c18af23f5240f7e07,,Алихан  Борамбаев,False,2026-08-13,2026-07-17,2026-08-13,live,2026-08-23T16:38:43+00:00,300000.0,250000.0,50000.0,2026-08-23T16:39:41+00:00,slow_track,price_drop,[],False,,[],[],{},False,False
+1012547286,https://krisha.kz/a/show/1012547286,2-комнатная квартира · 60 м² · 6/12 этаж,400000.0,за месяц,7500,2,60.0,6,12,Esilyskiy_r-n,Astana,Ryskulova,,51.086047139523,71.410210274713,10763247,nexpocity,Nexpo City,полностью,"свежий ремонт, новая мебель",,,,,"Сдам чистую, светлую, теплую, уютную с новым ремонтом двухкомнатную квартиру на длительный срок в жк Nexpo City возле Mega Silk Way, Expo, Назарбаев Университет, Станция LRT, ASTANA IT университет. 
+- Вся необходимая мебель (кухонный гарнитур, кровать, шкаф, диван, стол, стулья) 
+- Встроенная дорогая бытовая техника (плита, холодильник, духовка, микроволновка, телевизор, кондиционер, пылесос) 
+- Качественная сантехника, тропический душ 
+- В спальне ортопедический матрас, блек аут шторы 
+- Закрытый двор, детская площадка, паркинг, охрана, домофон, видеонаблюдение. 
+-Электронный замок, FACE ID 
+- Фитнес клуб INVICTUS в жк. 
+- Развитая инфраструктура. 
+Интернет, кабельное телевидение. Лифт, вода, свет без перебоев. 
+Ремонт делали для себя. 
+Только на длительный срок! 
+Оплата 450 тыс + ком. Услуги, Депозит 100 тыс. 
+Въехать можно будет с 25-го августа.
+
+Дом ориентировочно находится возле Ул.Т.Рыскулова","[""https://krisha-photos.kcdn.online/webp/81/81118978-60e3-4ecb-9c03-a843fcb11dad/1-full.jpg"", ""https://krisha-photos.kcdn.online/webp/81/81118978-60e3-4ecb-9c03-a843fcb11dad/2-full.jpg"", ""https://krisha-photos.kcdn.online/webp/81/81118978-60e3-4ecb-9c03-a843fcb11dad/3-full.jpg"", ""https://krisha-photos.kcdn.online/webp/81/81118978-60e3-4ecb-9c03-a843fcb11dad/4-full.jpg"", ""https://krisha-photos.kcdn.online/webp/81/81118978-60e3-4ecb-9c03-a843fcb11dad/5-full.jpg"", ""https://krisha-photos.kcdn.online/webp/81/81118978-60e3-4ecb-9c03-a843fcb11dad/6-full.jpg"", ""https://krisha-photos.kcdn.online/webp/81/81118978-60e3-4ecb-9c03-a843fcb11dad/7-full.jpg"", ""https://krisha-photos.kcdn.online/webp/81/81118978-60e3-4ecb-9c03-a843fcb11dad/8-full.jpg"", ""https://krisha-photos.kcdn.online/webp/81/81118978-60e3-4ecb-9c03-a843fcb11dad/9-full.jpg"", ""https://krisha-photos.kcdn.online/webp/81/81118978-60e3-4ecb-9c03-a843fcb11dad/10-full.jpg"", ""https://krisha-photos.kcdn.online/webp/81/81118978-60e3-4ecb-9c03-a843fcb11dad/11-full.jpg""]",11,6f7a9bd047a1c38f2a38389dc14b2a29fa8379515573554f70b3a3aea945a920,,Хозяин,False,2026-08-07,2026-05-26,2026-08-07,live,2026-08-23T16:38:43+00:00,420000.0,400000.0,20000.0,2026-08-23T16:39:41+00:00,slow_track,price_drop,[],False,чистовая,[],"[""новый ремонт"", ""встроенная дорогая бытовая техника"", ""качественная сантехника"", ""тропический душ"", ""ортопедический матрас"", ""блек аут шторы"", ""электронный замок"", ""FACE ID"", ""фитнес клуб INVICTUS""]","{""pets"": ""не указано"", ""parking"": ""true"", ""view"": ""не указано"", ""metro"": ""Станция LRT"", ""balcony"": ""не указано"", ""security"": ""охрана, домофон, видеонаблюдение""}",False,False
+1014056842,https://krisha.kz/a/show/1014056842,1-комнатная квартира · 40 м²,230000.0,за месяц,6000,1,40.0,,,Esilyskiy_r-n,Astana,Kulytegin,14,51.136007981279,71.375614887099,,,,,,,,,,"• Коммунальные услуги отдельно 
 • Агентское сопровождение сделки-50.000 тенге 
 ⚖️ Юридическое оформление и прозрачность гарантированы 
-✨ Всё по закону, честно и с заботой о вас 💫","[""https://krisha-photos.kcdn.online/webp/47/476c24ad-eddc-4548-9b8c-2a1b60222719/33-full.jpg"", ""https://krisha-photos.kcdn.online/webp/47/476c24ad-eddc-4548-9b8c-2a1b60222719/34-full.jpg"", ""https://krisha-photos.kcdn.online/webp/47/476c24ad-eddc-4548-9b8c-2a1b60222719/35-full.jpg"", ""https://krisha-photos.kcdn.online/webp/47/476c24ad-eddc-4548-9b8c-2a1b60222719/36-full.jpg"", ""https://krisha-photos.kcdn.online/webp/47/476c24ad-eddc-4548-9b8c-2a1b60222719/37-full.jpg"", ""https://krisha-photos.kcdn.online/webp/47/476c24ad-eddc-4548-9b8c-2a1b60222719/38-full.jpg""]",6,676c6551b1b55d4a304a714bab163d0148760c8bf479297a98b6842c651031a0,,Жакупов Исламбек,False,2026-08-13,2026-07-31,2026-08-13,live,2026-08-23T14:33:36+00:00,300000.0,180000.0,120000.0,2026-08-23T14:35:20+00:00,slow_track,price_drop,[],False,,[],[],{},False,True
-1014023462,https://krisha.kz/a/show/1014023462,2-комнатная квартира · 45 м²,200000.0,за месяц,5556,2,45.0,,,Almaty_r-n,Astana,Tauelsizdik,,51.146225408583,71.456817234409,,,,,,,,,,"• Евродвушка 
-• Коммунальные услуги отдельно 
-Агентское сопровождение сделки-20%=50.000 тенге 
-⚖️ Юридическое оформление и прозрачность гарантированы 
-✨ Всё по закону, честно и с заботой о вас 💫","[""https://krisha-photos.kcdn.online/webp/1b/1ba94d80-83d3-4a50-8b10-3dcced1ee0af/61-full.jpg"", ""https://krisha-photos.kcdn.online/webp/1b/1ba94d80-83d3-4a50-8b10-3dcced1ee0af/63-full.jpg"", ""https://krisha-photos.kcdn.online/webp/1b/1ba94d80-83d3-4a50-8b10-3dcced1ee0af/62-full.jpg"", ""https://krisha-photos.kcdn.online/webp/1b/1ba94d80-83d3-4a50-8b10-3dcced1ee0af/64-full.jpg"", ""https://krisha-photos.kcdn.online/webp/1b/1ba94d80-83d3-4a50-8b10-3dcced1ee0af/65-full.jpg""]",5,e14f10264973c4f0b06ffa72d168d01721ac52931dd5c71b68454910fa1582bf,,Алихан  Борамбаев,False,2026-08-12,2026-07-17,2026-08-12,live,2026-08-23T14:33:36+00:00,235000.0,200000.0,35000.0,2026-08-23T14:35:20+00:00,slow_track,price_drop,[],False,,[],[],{},False,False
-1014024195,https://krisha.kz/a/show/1014024195,1-комнатная квартира · 40 м²,200000.0,за месяц,5000,1,40.0,,,Almaty_r-n,Astana,Kuyshi_Dina,25,51.148626577409,71.478983939571,,,,,,,,,,"• Коммунальные услуги отдельно 
-• Депозит 
-• Агентское сопровождение сделки-50.000 тенге 
-⚖️ Юридическое оформление и прозрачность гарантированы 
-✨ Всё по закону, честно и с заботой о вас 💫","[""https://krisha-photos.kcdn.online/webp/e7/e7b013ce-28ad-420a-9caf-80dfd9c9b69a/97-full.jpg"", ""https://krisha-photos.kcdn.online/webp/e7/e7b013ce-28ad-420a-9caf-80dfd9c9b69a/98-full.jpg"", ""https://krisha-photos.kcdn.online/webp/e7/e7b013ce-28ad-420a-9caf-80dfd9c9b69a/99-full.jpg"", ""https://krisha-photos.kcdn.online/webp/e7/e7b013ce-28ad-420a-9caf-80dfd9c9b69a/100-full.jpg"", ""https://krisha-photos.kcdn.online/webp/e7/e7b013ce-28ad-420a-9caf-80dfd9c9b69a/101-full.jpg""]",5,591e45705e501da38be1b457eebe94377c7e9c0983cf654e1dab8214df279037,,Алихан  Борамбаев,False,2026-08-12,2026-07-17,2026-08-12,live,2026-08-23T14:33:36+00:00,300000.0,200000.0,100000.0,2026-08-23T14:35:20+00:00,slow_track,price_drop,[],False,,[],[],{},False,False
-1014416392,https://krisha.kz/a/show/1014416392,1-комнатная квартира · 45 м²,280000.0,за месяц,6667,1,45.0,,,Esilyskiy_r-n,Astana,Turan,,51.106169463363,71.395762404295,,,,,,,,,,"• Депозит 
-• Агентское сопровождение сделки-50.000 тенге! 
-⚖️ Юридическое оформление и прозрачность гарантированы 
-✨ Всё по закону, честно и с заботой о вас 💫","[""https://krisha-photos.kcdn.online/webp/eb/eb58cb5d-ef54-432a-ac59-b564009a2b54/31-full.jpg""]",1,9aba5d3b3a2fbf3846bd41975fab866460be3b09313e58a4edeb7eaf0e4ab170,,Жакупов Исламбек,False,2026-08-12,2026-07-31,2026-08-12,live,2026-08-23T14:33:36+00:00,300000.0,280000.0,20000.0,2026-08-23T14:35:20+00:00,slow_track,price_drop,[],False,,[],[],{},False,False
-1014416004,https://krisha.kz/a/show/1014416004,1-комнатная квартира · 30 м²,210000.0,за месяц,10000,1,30.0,,,Almaty_r-n,Astana,Kudayberdiuly,23,51.158293762035,71.503207485482,,,,,,,,,,"• Коммунальные услуги отдельно 
-• Депозит 
-• Агентское сопровождение сделки-50.000 тенге! 
-⚖️ Юридическое оформление и прозрачность гарантированы 
-✨ Всё по закону, честно и с заботой о вас 💫",[],0,,,Жакупов Исламбек,False,2026-08-11,2026-07-31,2026-08-11,live,2026-08-23T14:33:36+00:00,300000.0,210000.0,90000.0,2026-08-23T14:35:20+00:00,slow_track,price_drop,[],False,,[],[],{},False,False
-1014577391,https://krisha.kz/a/show/1014577391,1-комнатная квартира · 38 м² · 9/16 этаж,230000.0,за месяц,6579,1,38.0,9,16,Esilyskiy_r-n,Astana,Mangilik_El,72,51.070253259515,71.418468668528,11941976,aman,AMAN,полностью,"свежий ремонт, новая мебель",,,,,"Фото 100% 
-Квартира после ремонта ранее не сдавалась! 
-Мебель и техника все новое! 
-Депозит
-
-Дом ориентировочно находится возле Хусеин Бен Талал","[""https://krisha-photos.kcdn.online/webp/6f/6f5a5f30-c564-4579-99fc-d85bcf9ec9ca/1-full.jpg"", ""https://krisha-photos.kcdn.online/webp/6f/6f5a5f30-c564-4579-99fc-d85bcf9ec9ca/2-full.jpg"", ""https://krisha-photos.kcdn.online/webp/6f/6f5a5f30-c564-4579-99fc-d85bcf9ec9ca/3-full.jpg"", ""https://krisha-photos.kcdn.online/webp/6f/6f5a5f30-c564-4579-99fc-d85bcf9ec9ca/4-full.jpg"", ""https://krisha-photos.kcdn.online/webp/6f/6f5a5f30-c564-4579-99fc-d85bcf9ec9ca/5-full.jpg"", ""https://krisha-photos.kcdn.online/webp/6f/6f5a5f30-c564-4579-99fc-d85bcf9ec9ca/6-full.jpg"", ""https://krisha-photos.kcdn.online/webp/6f/6f5a5f30-c564-4579-99fc-d85bcf9ec9ca/7-full.jpg"", ""https://krisha-photos.kcdn.online/webp/6f/6f5a5f30-c564-4579-99fc-d85bcf9ec9ca/8-full.jpg"", ""https://krisha-photos.kcdn.online/webp/6f/6f5a5f30-c564-4579-99fc-d85bcf9ec9ca/9-full.jpg""]",9,20ffe4987ace29a19443eec1ac7122a3e930a2291c66fc01a30c42ccf6f4d187,,"Ибраев Айдархан, компания «PREMIER»",False,2026-08-11,2026-08-05,2026-08-11,live,2026-08-23T14:33:36+00:00,250000.0,230000.0,20000.0,2026-08-23T14:35:20+00:00,slow_track,price_drop,[],False,,[],[],{},False,True
-1013763290,https://krisha.kz/a/show/1013763290,2-комнатная квартира · 54 м² · 1/10 этаж,320000.0,за месяц,7407,2,54.0,1,10,Esilyskiy_r-n,Astana,Bokeyhana,11/1,51.104126,71.43537,,,,полностью,"свежий ремонт, новая мебель",,,,,"сдам 2комнатную квартиру 
-с новой мебелью 
-депозит 100 000","[""https://krisha-photos.kcdn.online/webp/3f/3f189f6f-51a5-4ab0-bf9f-23ef8cc0c153/1-full.jpg"", ""https://krisha-photos.kcdn.online/webp/3f/3f189f6f-51a5-4ab0-bf9f-23ef8cc0c153/2-full.jpg"", ""https://krisha-photos.kcdn.online/webp/3f/3f189f6f-51a5-4ab0-bf9f-23ef8cc0c153/3-full.jpg"", ""https://krisha-photos.kcdn.online/webp/3f/3f189f6f-51a5-4ab0-bf9f-23ef8cc0c153/4-full.jpg""]",4,5ca94cf7e44c267ec372e2bc01a5d6065afeb22257dc0d35f345ff89e0c15da8,,Хозяин,False,2026-08-11,2026-07-07,2026-08-11,live,2026-08-23T14:33:36+00:00,350000.0,320000.0,30000.0,2026-08-23T14:35:20+00:00,slow_track,price_drop,[],False,чистовая,[],"[""новая мебель"", ""свежий ремонт""]","{""депозит"": ""100 000""}",False,False
-684194300,https://krisha.kz/a/show/684194300,1-комнатная квартира · 25 м² · 2/4 этаж,180000.0,за месяц,8200,1,25.0,2,4,Saryarka_r-n,Astana,Vasiliy_Radlov,26/1,51.178002,71.368526,,,,полностью,"свежий ремонт, новая мебель",,,,,"сдам уютную квартиру на длительный срок! 
+✨ Всё по закону, честно и с заботой о вас 💫","[""https://krisha-photos.kcdn.online/webp/a2/a249477e-6e87-4bd7-8582-4d87135f7774/107-full.jpg"", ""https://krisha-photos.kcdn.online/webp/a2/a249477e-6e87-4bd7-8582-4d87135f7774/108-full.jpg"", ""https://krisha-photos.kcdn.online/webp/a2/a249477e-6e87-4bd7-8582-4d87135f7774/109-full.jpg"", ""https://krisha-photos.kcdn.online/webp/a2/a249477e-6e87-4bd7-8582-4d87135f7774/110-full.jpg"", ""https://krisha-photos.kcdn.online/webp/a2/a249477e-6e87-4bd7-8582-4d87135f7774/111-full.jpg"", ""https://krisha-photos.kcdn.online/webp/a2/a249477e-6e87-4bd7-8582-4d87135f7774/112-full.jpg""]",6,b16a423ec2ef4a17ab0dad198458dedc9d3acf410a344f030a6ab8823573b74b,,Алихан  Борамбаев,False,2026-08-13,2026-07-18,2026-08-13,live,2026-08-23T16:38:43+00:00,300000.0,230000.0,70000.0,2026-08-23T16:39:41+00:00,slow_track,price_drop,[],False,,[],[],{},False,False
+1014969613,https://krisha.kz/a/show/1014969613,1-комнатная квартира · 40 м² · 4/12 этаж,210000.0,за месяц,6000,1,40.0,4,12,Nura_r-n,Astana,E_103,5a,51.080727363799,71.38015411261,21307680,spaceplus,SPACE PLUS,частично,"свежий ремонт, новая мебель",,,,,"Сдам евро-2, 40 м² в ЖК SPACE PLUS | 4/12 этаж 
+💰 240 000 ₸/мес. + коммунальные услуги 
+Сдаётся на длительный срок светлая евро-2-комнатная квартира площадью 40 м² в современном ЖК SPACE PLUS, район Нура. 
+4 этаж из 12. 
+Квартира со свежим ремонтом, чистая и аккуратная. Никто не проживал / состояние новой квартиры. 
+🏠 Планировка: • отдельная спальня 
+• просторная кухня-гостиная 
+• санузел 
+• большая зона остекления 
+🍽 Кухня полностью оборудована: • кухонный гарнитур 
+• холодильник 
+• варочная поверхность 
+• духовой шкаф 
+• микроволновая печь 
+• обеденный стол 
+• 4 стула 
+🛏 В спальне: • двуспальная кровать 
+• плотные шторы и тюль 
+🧺 В санузле установлена стиральная машина. 
+Важно: квартира сдаётся частично меблированной. На данный момент нет дивана, шкафа и телевизора. Это учтено в стоимости аренды. 
+Подойдёт одному человеку или паре, которые ищут свежую квартиру на длительный срок и хотят организовать часть пространства под себя. 
+💰 Аренда — 240 000 ₸/месяц Коммунальные услуги оплачиваются отдельно. 🔐 Возвратный депозит — 100 000 ₸. 
+Сдаётся на длительный срок. Без субаренды. 
+Просмотр по предварительной договорённости.","[""https://krisha-photos.kcdn.online/webp/31/31f1ab23-9095-4b10-812e-adab3bb757b4/1-full.jpg"", ""https://krisha-photos.kcdn.online/webp/31/31f1ab23-9095-4b10-812e-adab3bb757b4/2-full.jpg"", ""https://krisha-photos.kcdn.online/webp/31/31f1ab23-9095-4b10-812e-adab3bb757b4/3-full.jpg"", ""https://krisha-photos.kcdn.online/webp/31/31f1ab23-9095-4b10-812e-adab3bb757b4/4-full.jpg"", ""https://krisha-photos.kcdn.online/webp/31/31f1ab23-9095-4b10-812e-adab3bb757b4/5-full.jpg"", ""https://krisha-photos.kcdn.online/webp/31/31f1ab23-9095-4b10-812e-adab3bb757b4/6-full.jpg"", ""https://krisha-photos.kcdn.online/webp/31/31f1ab23-9095-4b10-812e-adab3bb757b4/7-full.jpg"", ""https://krisha-photos.kcdn.online/webp/31/31f1ab23-9095-4b10-812e-adab3bb757b4/8-full.jpg"", ""https://krisha-photos.kcdn.online/webp/31/31f1ab23-9095-4b10-812e-adab3bb757b4/9-full.jpg"", ""https://krisha-photos.kcdn.online/webp/31/31f1ab23-9095-4b10-812e-adab3bb757b4/10-full.jpg""]",10,d62a2a600e44911b853ff3f0fc885334f8946de88e0e62427beaa73750eb2670,,Хозяин,False,2026-08-19,2026-08-19,2026-08-19,live,2026-08-23T16:38:43+00:00,240000.0,210000.0,30000.0,2026-08-23T16:39:41+00:00,slow_track,price_drop,[],False,чистовая,[],"[""евро-2"", ""свежий ремонт"", ""новая мебель"", ""кухонный гарнитур"", ""холодильник"", ""варочная поверхность"", ""духовой шкаф"", ""микроволновая печь"", ""обеденный стол"", ""двуспальная кровать"", ""плотные шторы и тюль"", ""стиральная машина""]","{""pets"": ""нет"", ""parking"": ""нет"", ""view"": ""большая зона остекления"", ""metro"": ""район Нура"", ""balcony"": ""нет"", ""security"": ""нет"", ""area"": ""40 м²"", ""floor"": ""4/12"", ""duration"": ""длительный срок"", ""deposit"": ""100 000 ₸"", ""furniture"": ""частично"", ""utilities"": ""отдельно""}",False,False
+1014874096,https://krisha.kz/a/show/1014874096,1-комнатная квартира · 40 м² · 5/9 этаж,180000.0,за месяц,7500,1,40.0,5,9,,Astana,Nazhimedenova,17,51.112973438311,71.514447435688,,,,полностью,,,,,,"⚠️ Агентство недвижимости 
  
-адрес: Начало Сейфуллина. 
- 
-Описание квартиры: 
- 
- Самый уютный и спокойный дом в городе. 
- Квартира на 2 этаже в кирпичном доме с хорошей шумоизоляцией — соседей не слышно. 
- Кухня-студия с новым кухонным гарнитуром и новой бытовой техникой (холодильник, стиральная машина, телевизор, кондиционер). 
- Чистый санузел, ванна. 
- Мебель: кровать, диван, обеденный стол, рабочий стол, шкаф для одежды. 
- Окна выходят на двор и улицу. 
- Квартира непахнущая, светлая и уютная. 
- Система безопасности (видеонаблюдение, домофон). 
- 
-Удобства: 
- 
- Огороженный двор с парковкой. 
-квартира в хорошем состоянии. 
- 
-расположение: 
- 
- До левого берега 5 минут. 
- Рядом Смолл, магазины, ТД ""Рахмет"". 
- Кинотеатр ""Коктал"" в шаговой доступности. 
- Остановка рядом с домом, проходят автобусные маршруты № 42, 64, 120 и другие. 
- Удобные транспортные остановки в любую сторону города. 
- Тихий и зеленый район с развитой инфраструктурой. 
- 
-Условия аренды: 
- 
- Аренда + коммунальные услуги + возвратный депозит. 
- Квартира сдаётся на длительный срок порядочным и аккуратным людям. 
- 
-звоните или пишите для записи на просмотр!
-
-Дом ориентировочно находится возле Акан Серы, ТД Рахмет","[""https://krisha-photos.kcdn.online/webp/b5/b5d20e87-3828-48d4-a10d-e2420cb42ee8/41-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b5/b5d20e87-3828-48d4-a10d-e2420cb42ee8/27-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b5/b5d20e87-3828-48d4-a10d-e2420cb42ee8/21-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b5/b5d20e87-3828-48d4-a10d-e2420cb42ee8/22-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b5/b5d20e87-3828-48d4-a10d-e2420cb42ee8/23-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b5/b5d20e87-3828-48d4-a10d-e2420cb42ee8/24-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b5/b5d20e87-3828-48d4-a10d-e2420cb42ee8/25-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b5/b5d20e87-3828-48d4-a10d-e2420cb42ee8/26-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b5/b5d20e87-3828-48d4-a10d-e2420cb42ee8/28-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b5/b5d20e87-3828-48d4-a10d-e2420cb42ee8/29-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b5/b5d20e87-3828-48d4-a10d-e2420cb42ee8/30-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b5/b5d20e87-3828-48d4-a10d-e2420cb42ee8/31-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b5/b5d20e87-3828-48d4-a10d-e2420cb42ee8/33-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b5/b5d20e87-3828-48d4-a10d-e2420cb42ee8/34-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b5/b5d20e87-3828-48d4-a10d-e2420cb42ee8/35-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b5/b5d20e87-3828-48d4-a10d-e2420cb42ee8/36-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b5/b5d20e87-3828-48d4-a10d-e2420cb42ee8/37-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b5/b5d20e87-3828-48d4-a10d-e2420cb42ee8/38-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b5/b5d20e87-3828-48d4-a10d-e2420cb42ee8/39-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b5/b5d20e87-3828-48d4-a10d-e2420cb42ee8/40-full.jpg""]",20,d8fbe953a06ec64f554b0e969a14c73534f74ce3961622dde357c0712975fdca,,Хозяин,False,2026-08-10,2023-04-22,2026-08-10,live,2026-08-23T14:33:36+00:00,190000.0,180000.0,10000.0,2026-08-23T14:35:20+00:00,slow_track,price_drop,[],False,чистовая,[],"[""новый кухонный гарнитур"", ""новая бытовая техника"", ""свежий ремонт"", ""новая мебель""]","{""pets"": ""не указано"", ""parking"": ""огороженный двор с парковкой"", ""view"": ""на двор и улицу"", ""metro"": ""остановка рядом с домом, проходят автобусные маршруты № 42, 64, 120 и другие"", ""balcony"": ""не указано"", ""security"": ""система безопасности (видеонаблюдение, домофон)""}",False,False
-686359483,https://krisha.kz/a/show/686359483,1-комнатная квартира · 25 м² · 4/4 этаж,180000.0,за месяц,8200,1,25.0,4,4,Saryarka_r-n,Astana,Vasiliya_Radlova,26/1,51.177996,71.368544,,,,полностью,"свежий ремонт, новая мебель",,,,,"Сдам уютную квартиру на длительный срок! 
- 
-адрес: Начало Сейфуллина. 
- 
-Описание квартиры: 
- 
-НОВЫЙ ДИВАН! 
- 
-Самый уютный и спокойный дом в городе, с хорошей шумоизоляцией. 
- Квартира на 4 этаже, с тихим этажом, сверху никто не топает — идеальный вариант для интровертов. 
- Вся бытовая техника, кухонный гарнитур и диван НОВЫЕ, никто не пользовался! 
- Кухня-студия с новым кухонным гарнитуром и бытовой техникой (новый холодильник, новая стиральная машинка, телевизор, кондиционер). 
- Новый диван и ковер. 
- Чистый санузел, ванна. 
- Окна выходят на двор и улицу, летом в квартире прохладно, зимой тепло. 
- Квартира свежая, непахнущая, светлая и уютная. 
- Всё необходимое для комфортного проживания: посуда, сушилка для белья, дополнительные полки и шкафы для хранения вещей. 
- 
-Удобства: 
- 
- Огороженный двор с парковкой. 
- Шумоизоляция — соседей не слышно. 
- Энергоэффективность: новая система отопления и качественная теплоизоляция, зимой тепло, летом прохладно. 
- 
-Безопасность: 
- 
- В доме установлена система видеонаблюдения, обеспечивающая безопасность на территории. 
- Входная дверь с домофоном для удобного и безопасного доступа в подъезд. 
- 
-расположение: 
- 
- До левого берега всего 5 минут. 
- Рядом Смолл, 4 школы, детские садики, магазины, ТД Рахмет;. 
- Кинотеатр Коктал; в шаговой доступности. 
- Остановка рядом с домом, проходят автобусы № 42, 64, 120 и другие. 
- Удобные транспортные маршруты в любую сторону города. 
- Безопасный и спокойный район с развитой инфраструктурой. 
- 
-Фото 100% актуальны и соответствуют реальному состоянию квартиры! 
- 
- Условия аренды: 
- Аренда + коммунальные услуги + возвратный депозит 30 000 тг. 
- Рассматриваем арендаторов на длительный срок — порядочных и аккуратных людей. 
- 
-Квартира сдаётся в идеальном состоянии и готова к заселению! звоните или пишите для записи на просмотр!
-
-Дом ориентировочно находится возле Акан Серы","[""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/21-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/20-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/26-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/27-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/28-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/25-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/19-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/15-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/16-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/18-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/2-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/3-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/4-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/6-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/12-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/11-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/13-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/14-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/17-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/10-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/9-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/5-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/1-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/7-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/8-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/22-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/23-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/24-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/69703bae-6ded-428d-8c94-5abed1db1b2c/29-full.jpg""]",29,fad005093307db503db2f993aa3f3ebf06ae9464ea6ca00f434c461422ba9e26,,Хозяин,False,2026-08-09,2023-07-17,2026-08-09,live,2026-08-23T14:33:36+00:00,190000.0,180000.0,10000.0,2026-08-23T14:35:20+00:00,slow_track,price_drop,[],False,чистовая,[],"[""новый диван"", ""новый кухонный гарнитур"", ""новая бытовая техника"", ""новый холодильник"", ""новая стиральная машинка"", ""телевизор"", ""кондиционер"", ""новый ковер"", ""свежий ремонт"", ""новая мебель""]","{""pets"": ""не указано"", ""parking"": ""огороженный двор с парковкой"", ""view"": ""окна выходят на двор и улицу"", ""metro"": ""остановка рядом с домом, проходят автобусы № 42, 64, 120 и другие"", ""balcony"": ""не указано"", ""security"": ""система видеонаблюдения, входная дверь с домофоном"", ""шумоизоляция"": ""хорошая шумоизоляция, соседей не слышно"", ""энергоэффективность"": ""новая система отопления, качественная теплоизоляция""}",False,False
-1014042257,https://krisha.kz/a/show/1014042257,1-комнатная квартира · 40 м² · 8/9 этаж,275000.0,за месяц,7000,1,40.0,8,9,Nura_r-n,Astana,Turan,57/7,51.107064940718,71.394409400822,20188748,arenaunity,Arena Unity,полностью,"свежий ремонт, новая мебель",,,,,"Абсолютно новая 1-комнатная квартира в ЖК Arena Unity (комфорт-класс), ранее не сдавалась и никто не проживал. 
-Квартира приобреталась и полностью обустраивалась для собственного проживания, поэтому ремонт, мебель и техника выбирались с особым вниманием к качеству и комфорту. В связи с изменением планов предлагается в долгосрочную аренду. 
-Один из самых престижных районов столицы с отличной инфраструктурой и удобной транспортной развязкой. 
-В пешей доступности: 
-• Барыс Арена; 
-• Астана Арена; 
-• Велотрек «Сарыарка»; 
-• Легкоатлетический спортивный комплекс «Qazaqstan»; 
-• Ледовый дворец «Алау»; 
-• Ботанический сад и станция LRT — около 13 минут пешком. 
-О квартире: 
-✔ 8 этаж из 9; 
-✔ ЖК комфорт-класса; 
-✔ закрытый безопасный двор; 
-✔ современный дизайнерский подъезд; 
-✔ круглосуточная охрана; 
-✔ электронные замки и система Face ID. 
-Квартира светлая, уютная и полностью готова к заселению. 
-✔ Современный новый ремонт; 
-✔Отдельная гардеробная 
-✔ Вся мебель и техника — современная; 
-✔ Кондиционер с функцией «без сквозняка»; 
-✔увеличенные окна с москитными сетками; 
-✔ Розетки с USB, Type-C и отдельно беспроводная для удобной зарядки гаджетов; 
-✔ Продуманная планировка и множество мест для хранения; 
-✔полноценная ванная 180*80 с тропическим душем и встроенным термостатом; 
- Ищем аккуратных, чистоплотных, платежеспособных и ответственных арендаторов, которые будут относиться к квартире так же бережно, как к своей. 
-Стоимость аренды: 280 000 ₸/месяц + коммунальные услуги. 
-Возвратный депозит: 150 000 ₸. 
-Квартира сдается только на длительный срок. Обращаться: 10:00-23:30. 
-Риелторов просим не беспокоить!","[""https://krisha-photos.kcdn.online/webp/b6/b6336710-4c32-429d-ad66-0164b98953ca/1-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b6/b6336710-4c32-429d-ad66-0164b98953ca/2-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b6/b6336710-4c32-429d-ad66-0164b98953ca/3-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b6/b6336710-4c32-429d-ad66-0164b98953ca/4-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b6/b6336710-4c32-429d-ad66-0164b98953ca/5-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b6/b6336710-4c32-429d-ad66-0164b98953ca/6-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b6/b6336710-4c32-429d-ad66-0164b98953ca/7-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b6/b6336710-4c32-429d-ad66-0164b98953ca/8-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b6/b6336710-4c32-429d-ad66-0164b98953ca/9-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b6/b6336710-4c32-429d-ad66-0164b98953ca/10-full.jpg"", ""https://krisha-photos.kcdn.online/webp/b6/b6336710-4c32-429d-ad66-0164b98953ca/11-full.jpg""]",11,cddc42ddf54faf4c144fe1b6eee37ad80ab54d536f620a0eaf90e71fd26f056b,,Хозяин,False,2026-08-09,2026-07-17,2026-08-09,live,2026-08-23T14:33:36+00:00,280000.0,275000.0,5000.0,2026-08-23T14:35:20+00:00,slow_track,price_drop,[],False,,[],[],{},False,True
-1011459023,https://krisha.kz/a/show/1011459023,2-комнатная квартира · 72 м² · 4/5 этаж,250000.0,за месяц,4167,2,72.0,4,5,Esilyskiy_r-n,Astana,Arnasay,7a,51.040702616045,71.429806341184,8478240,jug-1,ЮГ-1,полностью,"не новый, но аккуратный и чистый ремонт",,,,,"Тепло, уютная, хорошая квартира со стиральной машиной, диваны, шкафы, стол, стулья, ковры есть. После уборки
-
-Дом ориентировочно находится возле Первый квадрат","[""https://krisha-photos.kcdn.online/webp/55/559234d7-7b1e-4bc3-9ca6-5bf1d1f618c5/1-full.jpg"", ""https://krisha-photos.kcdn.online/webp/55/559234d7-7b1e-4bc3-9ca6-5bf1d1f618c5/2-full.jpg"", ""https://krisha-photos.kcdn.online/webp/55/559234d7-7b1e-4bc3-9ca6-5bf1d1f618c5/3-full.jpg"", ""https://krisha-photos.kcdn.online/webp/55/559234d7-7b1e-4bc3-9ca6-5bf1d1f618c5/4-full.jpg""]",4,af066be859746ac4c480dc710b356ad80004e6e4c37d98d70ce353738c948119,,Хозяин,False,2026-08-08,2026-04-18,2026-08-08,live,2026-08-23T14:33:36+00:00,280000.0,250000.0,30000.0,2026-08-23T14:35:20+00:00,slow_track,price_drop,[],False,чистовая,[],[],"{""metro"": ""Первый квадрат""}",False,False
-1014992283,https://krisha.kz/a/show/1014992283,2-комнатная квартира · 54 м² · 1/10 этаж,320000.0,за месяц,6481,2,54.0,1,10,Esilyskiy_r-n,Astana,Bokeyhana,11/1,51.104126,71.43537,,,,полностью,"не новый, но аккуратный и чистый ремонт",нет,,,,"кровать диван стол и 4 стульчики 
-все есть 
-сдам не с детьми 
-2 девушки или 1 человек чтоб жил 
-в Квартире никто не жил 
-залог 50 000","[""https://krisha-photos.kcdn.online/webp/f0/f0747155-fd73-4900-95e3-d4deb15456c4/1-full.jpg"", ""https://krisha-photos.kcdn.online/webp/f0/f0747155-fd73-4900-95e3-d4deb15456c4/2-full.jpg"", ""https://krisha-photos.kcdn.online/webp/f0/f0747155-fd73-4900-95e3-d4deb15456c4/3-full.jpg"", ""https://krisha-photos.kcdn.online/webp/f0/f0747155-fd73-4900-95e3-d4deb15456c4/4-full.jpg"", ""https://krisha-photos.kcdn.online/webp/f0/f0747155-fd73-4900-95e3-d4deb15456c4/5-full.jpg"", ""https://krisha-photos.kcdn.online/webp/f0/f0747155-fd73-4900-95e3-d4deb15456c4/6-full.jpg"", ""https://krisha-photos.kcdn.online/webp/f0/f0747155-fd73-4900-95e3-d4deb15456c4/7-full.jpg"", ""https://krisha-photos.kcdn.online/webp/f0/f0747155-fd73-4900-95e3-d4deb15456c4/8-full.jpg"", ""https://krisha-photos.kcdn.online/webp/f0/f0747155-fd73-4900-95e3-d4deb15456c4/9-full.jpg"", ""https://krisha-photos.kcdn.online/webp/f0/f0747155-fd73-4900-95e3-d4deb15456c4/10-full.jpg"", ""https://krisha-photos.kcdn.online/webp/f0/f0747155-fd73-4900-95e3-d4deb15456c4/11-full.jpg"", ""https://krisha-photos.kcdn.online/webp/f0/f0747155-fd73-4900-95e3-d4deb15456c4/12-full.jpg"", ""https://krisha-photos.kcdn.online/webp/f0/f0747155-fd73-4900-95e3-d4deb15456c4/13-full.jpg""]",13,d652e6276bfba86aff458ec677e3658ba5dfa918300845c8927e556e9fc5b89c,,Хозяин,False,2026-08-20,2026-08-20,2026-08-20,live,2026-08-23T14:33:36+00:00,350000.0,320000.0,30000.0,2026-08-23T14:35:20+00:00,slow_track,price_drop,[],False,,[],[],{},False,True
-1015004281,https://krisha.kz/a/show/1015004281,2-комнатная квартира · 45 м² · 4/9 этаж,260000.0,за месяц,6000,2,45.0,4,9,r-n_Baykonur,Astana,Kultobe,11,51.175043,71.450884,,,,полностью,"не новый, но аккуратный и чистый ремонт",,,,,чистая ухоженная квартира двухкомнатная.,"[""https://krisha-photos.kcdn.online/webp/c0/c077f469-f021-4ecd-8d9a-026bf8d186e1/1-full.jpg"", ""https://krisha-photos.kcdn.online/webp/c0/c077f469-f021-4ecd-8d9a-026bf8d186e1/2-full.jpg"", ""https://krisha-photos.kcdn.online/webp/c0/c077f469-f021-4ecd-8d9a-026bf8d186e1/3-full.jpg"", ""https://krisha-photos.kcdn.online/webp/c0/c077f469-f021-4ecd-8d9a-026bf8d186e1/4-full.jpg"", ""https://krisha-photos.kcdn.online/webp/c0/c077f469-f021-4ecd-8d9a-026bf8d186e1/5-full.jpg"", ""https://krisha-photos.kcdn.online/webp/c0/c077f469-f021-4ecd-8d9a-026bf8d186e1/6-full.jpg"", ""https://krisha-photos.kcdn.online/webp/c0/c077f469-f021-4ecd-8d9a-026bf8d186e1/7-full.jpg"", ""https://krisha-photos.kcdn.online/webp/c0/c077f469-f021-4ecd-8d9a-026bf8d186e1/8-full.jpg"", ""https://krisha-photos.kcdn.online/webp/c0/c077f469-f021-4ecd-8d9a-026bf8d186e1/9-full.jpg"", ""https://krisha-photos.kcdn.online/webp/c0/c077f469-f021-4ecd-8d9a-026bf8d186e1/10-full.jpg"", ""https://krisha-photos.kcdn.online/webp/c0/c077f469-f021-4ecd-8d9a-026bf8d186e1/11-full.jpg"", ""https://krisha-photos.kcdn.online/webp/c0/c077f469-f021-4ecd-8d9a-026bf8d186e1/12-full.jpg""]",12,9b8e1ffd117866a8b76b56457121df62de9fa71592dd6713c9b3dfb2f03513ae,,Хозяин,False,2026-08-21,2026-08-21,2026-08-21,live,2026-08-23T14:33:36+00:00,270000.0,260000.0,10000.0,2026-08-23T14:35:20+00:00,slow_track,price_drop,[],False,,[],[],{},False,True
-1014984307,https://krisha.kz/a/show/1014984307,3-комнатная квартира · 77.1 м² · 12/16 этаж,380000.0,за месяц,4929,3,77.1,12,16,Almaty_r-n,Astana,Baytursynova,16,51.117786130512,71.508909591561,11736324,baitursyn,Bai-Tursyn,полностью,,нет,,,,"Сдается 3-х комнатная квартира в связи с расширением, просторная, светлая, чистая, с мебелью. Ранее не сдавали проживали сами хозяева. 
-В квартире остается, кухонный стол, диван, спальный кровать, шкафы. (телевизор заберем). 
-Кровать в детской комнате заберем. 
-Рядом школа 86, бином, детские сады, магазины, супермаркет, остановка общественного транспорта. 
-Сдам семье. 
-Аренда 380000+комуслуга. 
-Если интернет нужен то оплата отдельно 5000 тенге ежемесячно. 
-Депозит- 100, 000 тенге. 
-Квартира освободиться 30 августа
-
-Дом ориентировочно находится возле А51","[""https://krisha-photos.kcdn.online/webp/69/6957a51f-7171-41c8-8d78-30838e7290c9/1-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/6957a51f-7171-41c8-8d78-30838e7290c9/2-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/6957a51f-7171-41c8-8d78-30838e7290c9/3-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/6957a51f-7171-41c8-8d78-30838e7290c9/4-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/6957a51f-7171-41c8-8d78-30838e7290c9/5-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/6957a51f-7171-41c8-8d78-30838e7290c9/6-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/6957a51f-7171-41c8-8d78-30838e7290c9/7-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/6957a51f-7171-41c8-8d78-30838e7290c9/8-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/6957a51f-7171-41c8-8d78-30838e7290c9/9-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/6957a51f-7171-41c8-8d78-30838e7290c9/10-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/6957a51f-7171-41c8-8d78-30838e7290c9/11-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/6957a51f-7171-41c8-8d78-30838e7290c9/12-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/6957a51f-7171-41c8-8d78-30838e7290c9/13-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/6957a51f-7171-41c8-8d78-30838e7290c9/14-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/6957a51f-7171-41c8-8d78-30838e7290c9/15-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/6957a51f-7171-41c8-8d78-30838e7290c9/16-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/6957a51f-7171-41c8-8d78-30838e7290c9/17-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/6957a51f-7171-41c8-8d78-30838e7290c9/18-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/6957a51f-7171-41c8-8d78-30838e7290c9/19-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/6957a51f-7171-41c8-8d78-30838e7290c9/20-full.jpg"", ""https://krisha-photos.kcdn.online/webp/69/6957a51f-7171-41c8-8d78-30838e7290c9/21-full.jpg""]",21,ef70e23ad5fe4209f011eeaf9f27f384afa764b6741475bba6ceb15f0a59aaee,,Хозяин,False,2026-08-20,2026-08-20,2026-08-20,live,2026-08-23T14:33:36+00:00,400000.0,380000.0,20000.0,2026-08-23T14:35:20+00:00,slow_track,price_drop,[],False,,[],[],{},False,True
-761242769,https://krisha.kz/a/show/761242769,2-комнатная квартира · 75 м² · 5/14 этаж,290000.0,за месяц,4000,2,75.0,5,14,Saryarka_r-n,Astana,Tarasa_Shevchenko,8,51.159370186012,71.405506721931,8477276,sana,Сана,полностью,"не новый, но аккуратный и чистый ремонт",,,,,"ЖК находиться в отлично месторождение : 
- набережная, городской парк, Small, 60 школа -лицей, 4 -ая поликлиника 
-аптеки, мини- маркеты, салоны красоты, фитнес -клуб и т.д 
-Отличная транспортная развязка. 
-Окна выходят во двор, два лифта, тёплый дом. Квартира освободится 25 августа. Приветсвуется семья с детьми не более 4 -х человек. 
-300, 000+ 100. 000 депозит, ком. услуги. А/Н","[""https://krisha-photos.kcdn.online/webp/65/65c3863c-23ac-48b8-b4ae-9c0f9ea36140/1-full.jpg"", ""https://krisha-photos.kcdn.online/webp/65/65c3863c-23ac-48b8-b4ae-9c0f9ea36140/2-full.jpg"", ""https://krisha-photos.kcdn.online/webp/65/65c3863c-23ac-48b8-b4ae-9c0f9ea36140/3-full.jpg"", ""https://krisha-photos.kcdn.online/webp/65/65c3863c-23ac-48b8-b4ae-9c0f9ea36140/4-full.jpg"", ""https://krisha-photos.kcdn.online/webp/65/65c3863c-23ac-48b8-b4ae-9c0f9ea36140/5-full.jpg""]",5,9a52e49b72abc00008857f616963d9a1ca7ee154f2ed1256a7be5bb0212f27c2,,ИП Apartments Ai,False,2026-08-19,2025-02-16,2026-08-19,live,2026-08-23T14:33:36+00:00,300000.0,290000.0,10000.0,2026-08-23T14:35:20+00:00,slow_track,price_drop,[],False,,[],[],{},False,True
-1014867896,https://krisha.kz/a/show/1014867896,2-комнатная квартира · 65 м² · 6/15 этаж,150000.0,за месяц,4615,2,65.0,6,15,,Astana,Kaldayakova,6,51.117958,71.459265,,,,полностью,"не новый, но аккуратный и чистый ремонт",,,,,"⚠️ Агентство недвижимости, комиссия 
-⚠️ Депозит 
  Коммунальные услуги оплачиваются отдельно. 
  
 ✔️ Преимущества района: 
@@ -197,73 +65,5 @@
  • Полная безопасность и прозрачность на всех этапах. 
  
 📞 Звоните или пишите, будем рады ответить на все возникшие вопросы! 
-с 9:00 до 22:00.
-
-Дом ориентировочно находится возле ЖК Австрийский квартал","[""https://krisha-photos.kcdn.online/webp/8e/8ef03e33-0393-44fc-84df-ce61f735612b/17-full.jpg"", ""https://krisha-photos.kcdn.online/webp/8e/8ef03e33-0393-44fc-84df-ce61f735612b/18-full.jpg"", ""https://krisha-photos.kcdn.online/webp/8e/8ef03e33-0393-44fc-84df-ce61f735612b/19-full.jpg"", ""https://krisha-photos.kcdn.online/webp/8e/8ef03e33-0393-44fc-84df-ce61f735612b/20-full.jpg""]",4,093a8c2d4fdb12383d8a7745bf10e4acdbe9ba9c8d307e679f8064a42488d672,,Мустафина Дана,False,2026-08-16,2026-08-16,2026-08-16,live,2026-08-23T14:33:36+00:00,400000.0,150000.0,250000.0,2026-08-23T14:35:20+00:00,slow_track,price_drop,[],False,,[],[],{},False,True
-1015064736,https://krisha.kz/a/show/1015064736,1-комнатная квартира · 45 м² · 4/5 этаж,70000.0,за месяц,2889,1,45.0,4,5,Saryarka_r-n,Astana,Bayseytova_124,,51.18244,71.377779,,,,,"свежий ремонт, новая мебель",нет,,,,"5 айга арендага беремин
-
-Дом ориентировочно находится возле Коктал торговый дом",[],0,,,Хозяин,False,2026-08-23,2026-08-23,2026-08-23,live,2026-08-23T14:33:36+00:00,130000.0,70000.0,60000.0,2026-08-23T14:35:20+00:00,slow_track,price_drop,[],False,,[],[],{},False,True
-1015063502,https://krisha.kz/a/show/1015063502,2-комнатная квартира · 40 м²,220000.0,за месяц,5750,2,40.0,9,,Sarayshyk_r-n,Astana,A_Baytursynuly,17/2,51.124306,71.477357,8477230,skazochnyj-mir,Сказочный мир,,"свежий ремонт, новая мебель",,,,,"Возвратный депозит 70000 тг 
-1. Локация и инфраструктура 
-* Культурный и административный центр: В непосредственной близости расположены Дворец 
-Независимости, Национальный музей РК, Университет искусств (КазНУИ), Президентский парк и мечеть «Хазрет Султан». 
-* Учебные заведения: В пешей доступности находятся школа-лицей Nº72, детские сады, образовательные центры. 
-* Все под рукой: На первых этажах комплекса и поблизости функционируют супермаркеты, аптеки, салоны красоты, кафе, медицинские центры и отделение банка. 
-2. Транспортная доступность 
-* Удобные выезды на ключевые магистрали - проспект Р. 
-Кошкарбаева, проспект А. 
-Байтурсынова и проспект 
-Тауелсиздик. 
-Развитая сеть общественного транспорта: рядом расположены остановки множества автобусных маршрутов, позволяющих быстро добраться как на Правый, так и на Левый берег. 
-3. Безопасность и обустройство двора 
-* Благоустроенный двор: Во дворах обустроены детские и спортивные площадки, зоны отдыха, установлены скамейки и выполненное озеленение. 
-* ⁠Паркинг: Во дворе предусмотрены парковочные места.
-
-Дом ориентировочно находится возле ул. А.Байтурсынулы - К.Аманжолова","[""https://krisha-photos.kcdn.online/webp/43/4357a6e9-b676-48c5-8e7e-9a4fbb3b5826/1-full.jpg"", ""https://krisha-photos.kcdn.online/webp/43/4357a6e9-b676-48c5-8e7e-9a4fbb3b5826/2-full.jpg"", ""https://krisha-photos.kcdn.online/webp/43/4357a6e9-b676-48c5-8e7e-9a4fbb3b5826/3-full.jpg"", ""https://krisha-photos.kcdn.online/webp/43/4357a6e9-b676-48c5-8e7e-9a4fbb3b5826/4-full.jpg""]",4,b3dd49e5d3f58f0fa816ed34544ccc40bc02540b5436472d995399e144bac463,,Хозяин,False,2026-08-23,2026-08-23,2026-08-23,live,2026-08-23T14:33:36+00:00,230000.0,220000.0,10000.0,2026-08-23T14:35:20+00:00,slow_track,price_drop,[],False,,[],[],{},False,True
-1014975227,https://krisha.kz/a/show/1014975227,2-комнатная квартира · 50 м² · 7/10 этаж,360000.0,за месяц,7600,2,50.0,7,10,Esilyskiy_r-n,Astana,Ryskulova,5/5,51.086360468213,71.411907883714,10763247,nexpocity,Nexpo City,полностью,,,,,,"Квартира светлая с видом на EXPO и Megasilkway. 
- 
-Ранее квартиру не сдавали 
- 
-Буду рада найти спокойных, порядочных жильцов на длительный срок, которые сохранят квартиру в хорошем состоянии. 
- 
-Квартира в спокойной современной стилистике: светлые стены, аккуратная отделка, качественная мебель и техника. Очень хочется найти жильцов, которые будут относиться к квартире так же бережно, как к своему дому. 
- 
-Предпочтение аккуратным и ответственным арендаторам, которые ценят чистоту, порядок и спокойную атмосферу. В квартире не курят. Без животных. Не приветствуются шумные компании, вечеринки и частые мероприятия дома. 
- 
-Квартира больше подойдёт для спокойного проживания одного человека или пары, без большой семьи и повышенной нагрузки на квартиру. 
- 
-Важно бережное отношение к мебели, стенам и технике, регулярная уборка и соблюдение чистоты.","[""https://krisha-photos.kcdn.online/webp/0f/0fcff011-3c20-4489-a9b8-c1ac88fd5969/11-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0f/0fcff011-3c20-4489-a9b8-c1ac88fd5969/12-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0f/0fcff011-3c20-4489-a9b8-c1ac88fd5969/4-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0f/0fcff011-3c20-4489-a9b8-c1ac88fd5969/7-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0f/0fcff011-3c20-4489-a9b8-c1ac88fd5969/5-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0f/0fcff011-3c20-4489-a9b8-c1ac88fd5969/6-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0f/0fcff011-3c20-4489-a9b8-c1ac88fd5969/2-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0f/0fcff011-3c20-4489-a9b8-c1ac88fd5969/1-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0f/0fcff011-3c20-4489-a9b8-c1ac88fd5969/3-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0f/0fcff011-3c20-4489-a9b8-c1ac88fd5969/8-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0f/0fcff011-3c20-4489-a9b8-c1ac88fd5969/9-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0f/0fcff011-3c20-4489-a9b8-c1ac88fd5969/10-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0f/0fcff011-3c20-4489-a9b8-c1ac88fd5969/13-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0f/0fcff011-3c20-4489-a9b8-c1ac88fd5969/14-full.jpg""]",14,8b8d53d1a9fc7f415f9c1e86cb4d6df04186afc05fe352fbe9ba2249a929af60,,Хозяин,False,2026-08-23,2026-08-20,2026-08-23,live,2026-08-23T14:33:36+00:00,380000.0,360000.0,20000.0,2026-08-23T14:35:20+00:00,slow_track,price_drop,[],False,,[],[],{},False,True
-1015046509,https://krisha.kz/a/show/1015046509,2-комнатная квартира · 64 м²,300000.0,за месяц,5000,2,64.0,10,,Sarayshyk_r-n,Astana,Zh_Nazhimedenova,13,51.114373344173,71.509933733318,10538869,viewpark,ViewPark,полностью,"свежий ремонт, новая мебель",,,,,"🏠 Агентство недвижимости Rent Time 
-⚠️ Стоимость услуг агентства – 60.000 тенге (разово, оплачивается после подписания договора аренды). 
-⚠️ Депозит 
-100000 
-🔑 Сдаётся 2 комнатная квартира 
- 
-📍Рядом находятся : Нурлы жол, Жибек Жолы, Бином 
- 
-✔️ Преимущества района: 
-• Отличная транспортная развязка. 
-• В шаговой доступности школы, детские сады, супермаркеты, магазины, аптеки, кафе, рестораны и больницы. 
- 
-✔️ О квартире: 
-• Светлая, уютная, просторная и очень тёплая. 
- 
-💎 Наши гарантии: 
-• Полное юридическое сопровождение сделки. 
-• Полная безопасность и прозрачность на всех этапах. 
- 
-📞 Есть вопросы? звоните или пишите, мы с радостью всё объясним!
-
-Дом ориентировочно находится возле А51","[""https://krisha-photos.kcdn.online/webp/9c/9c242a4c-f1fc-437d-a023-d6d7b1f9a982/1-full.jpg"", ""https://krisha-photos.kcdn.online/webp/9c/9c242a4c-f1fc-437d-a023-d6d7b1f9a982/2-full.jpg"", ""https://krisha-photos.kcdn.online/webp/9c/9c242a4c-f1fc-437d-a023-d6d7b1f9a982/3-full.jpg"", ""https://krisha-photos.kcdn.online/webp/9c/9c242a4c-f1fc-437d-a023-d6d7b1f9a982/4-full.jpg"", ""https://krisha-photos.kcdn.online/webp/9c/9c242a4c-f1fc-437d-a023-d6d7b1f9a982/5-full.jpg"", ""https://krisha-photos.kcdn.online/webp/9c/9c242a4c-f1fc-437d-a023-d6d7b1f9a982/6-full.jpg"", ""https://krisha-photos.kcdn.online/webp/9c/9c242a4c-f1fc-437d-a023-d6d7b1f9a982/7-full.jpg"", ""https://krisha-photos.kcdn.online/webp/9c/9c242a4c-f1fc-437d-a023-d6d7b1f9a982/8-full.jpg"", ""https://krisha-photos.kcdn.online/webp/9c/9c242a4c-f1fc-437d-a023-d6d7b1f9a982/9-full.jpg"", ""https://krisha-photos.kcdn.online/webp/9c/9c242a4c-f1fc-437d-a023-d6d7b1f9a982/10-full.jpg"", ""https://krisha-photos.kcdn.online/webp/9c/9c242a4c-f1fc-437d-a023-d6d7b1f9a982/11-full.jpg""]",11,65f38939e76064a38ef2496f5f8552589bf0c7d1611d3efa5d14761863a96183,,"Садуова Балжан, компания « PAZL Estate»",False,2026-08-23,2026-08-22,2026-08-23,live,2026-08-23T14:33:36+00:00,320000.0,300000.0,20000.0,2026-08-23T14:35:20+00:00,slow_track,price_drop,[],False,,[],[],{},False,True
-1015050437,https://krisha.kz/a/show/1015050437,2-комнатная квартира · 43 м² · 3 этаж,250000.0,за месяц,6047,2,43.0,3,,Nura_r-n,Astana,Tole_bi,,51.107544899749,71.39101834102,20314616,arenalite,Arena. Lite,полностью,"свежий ремонт, новая мебель",,,,,"Сдаётся в аренду на долгий срок евродвухкомнатная квартира (возле Барыс Арена). 
-Предусмотрен депозит 120 000 тенге. Плюс коммунальные услуги. 
-Рядом Ботанический сад, спортивный комплекс Qazaqstan, Астана Арена, ЛД Алау, велотренажёр Сарыарка, тренажерные залы Underground, Invictus, ChampionFitness, Iron Club), кафе, кофейни, магазины, Магнум.","[""https://krisha-photos.kcdn.online/webp/65/65935764-1b74-4e56-9058-dd72531ef99a/1-full.jpg"", ""https://krisha-photos.kcdn.online/webp/65/65935764-1b74-4e56-9058-dd72531ef99a/2-full.jpg"", ""https://krisha-photos.kcdn.online/webp/65/65935764-1b74-4e56-9058-dd72531ef99a/3-full.jpg"", ""https://krisha-photos.kcdn.online/webp/65/65935764-1b74-4e56-9058-dd72531ef99a/4-full.jpg"", ""https://krisha-photos.kcdn.online/webp/65/65935764-1b74-4e56-9058-dd72531ef99a/5-full.jpg""]",5,435228a162b423369fc8201e19f85670e158e801bbbb2005d2b8febde89cff8d,,Хозяин,False,2026-08-22,2026-08-22,2026-08-22,live,2026-08-23T14:33:36+00:00,260000.0,250000.0,10000.0,2026-08-23T14:35:20+00:00,slow_track,price_drop,[],False,,[],[],{},False,True
-693367025,https://krisha.kz/a/show/693367025,1-комнатная квартира · 43 м² · 5/10 этаж,200000.0,за месяц,5116,1,43.0,5,10,Esilyskiy_r-n,Astana,Syganak,,51.12731758531,71.394153901551,13743801,syganak,Syganak,частично,"не новый, но аккуратный и чистый ремонт",,,,,"однокомнатная квартира - 43м2 
-ЖК Syganak, пересечение улиц Сыганак и Толе би. 
- 
-Район с развитой инфраструктурой. В шаговой доступности несколько школ Бином, детские сады, поликлиника. Общественный автотранспорт в любое направление города. 
-Рядом находятся ТРЦ Ханшатыр, Зеленый квартал и т.д. 
- 
-В квартире свежий ремонт. Сдается на длительный срок. 220 000тг + коммунальные услуги+депозит
-
-Дом ориентировочно находится возле Сыганак Толе би","[""https://krisha-photos.kcdn.online/webp/ba/ba25f66b-d9bd-4f56-ae49-213cffae4a46/16-full.jpg"", ""https://krisha-photos.kcdn.online/webp/ba/ba25f66b-d9bd-4f56-ae49-213cffae4a46/1-full.jpg"", ""https://krisha-photos.kcdn.online/webp/ba/ba25f66b-d9bd-4f56-ae49-213cffae4a46/2-full.jpg"", ""https://krisha-photos.kcdn.online/webp/ba/ba25f66b-d9bd-4f56-ae49-213cffae4a46/3-full.jpg"", ""https://krisha-photos.kcdn.online/webp/ba/ba25f66b-d9bd-4f56-ae49-213cffae4a46/4-full.jpg"", ""https://krisha-photos.kcdn.online/webp/ba/ba25f66b-d9bd-4f56-ae49-213cffae4a46/5-full.jpg"", ""https://krisha-photos.kcdn.online/webp/ba/ba25f66b-d9bd-4f56-ae49-213cffae4a46/19-full.jpg"", ""https://krisha-photos.kcdn.online/webp/ba/ba25f66b-d9bd-4f56-ae49-213cffae4a46/20-full.jpg"", ""https://krisha-photos.kcdn.online/webp/ba/ba25f66b-d9bd-4f56-ae49-213cffae4a46/9-full.jpg"", ""https://krisha-photos.kcdn.online/webp/ba/ba25f66b-d9bd-4f56-ae49-213cffae4a46/10-full.jpg"", ""https://krisha-photos.kcdn.online/webp/ba/ba25f66b-d9bd-4f56-ae49-213cffae4a46/11-full.jpg"", ""https://krisha-photos.kcdn.online/webp/ba/ba25f66b-d9bd-4f56-ae49-213cffae4a46/12-full.jpg"", ""https://krisha-photos.kcdn.online/webp/ba/ba25f66b-d9bd-4f56-ae49-213cffae4a46/13-full.jpg"", ""https://krisha-photos.kcdn.online/webp/ba/ba25f66b-d9bd-4f56-ae49-213cffae4a46/14-full.jpg"", ""https://krisha-photos.kcdn.online/webp/ba/ba25f66b-d9bd-4f56-ae49-213cffae4a46/15-full.jpg"", ""https://krisha-photos.kcdn.online/webp/ba/ba25f66b-d9bd-4f56-ae49-213cffae4a46/17-full.jpg"", ""https://krisha-photos.kcdn.online/webp/ba/ba25f66b-d9bd-4f56-ae49-213cffae4a46/18-full.jpg""]",17,5749e563af13d0e589c7316f00f5bf08bc96336b4ca565a3f293991d8220ec0e,,Хозяин,False,2026-08-22,2024-04-27,2026-08-22,live,2026-08-23T14:33:36+00:00,220000.0,200000.0,20000.0,2026-08-23T14:35:20+00:00,slow_track,price_drop,[],False,,[],[],{},False,True
+с 9:00 до 22:00.",[],0,,,Мустафина Дана,False,2026-08-17,2026-08-17,2026-08-17,live,2026-08-23T16:38:43+00:00,300000.0,180000.0,120000.0,2026-08-23T16:39:41+00:00,slow_track,price_drop,[],False,,[],[],"{""pets"": ""не указано"", ""parking"": ""не указано"", ""view"": ""не указано"", ""metro"": ""не указано"", ""balcony"": ""не указано"", ""security"": ""не указано""}",False,False
+1015055834,https://krisha.kz/a/show/1015055834,2-комнатная квартира · 48 м² · 2/9 этаж,280000.0,за месяц,6250,2,48.0,2,9,Nura_r-n,Astana,Kazybek_bi,"3,_3/1,_3/2",51.126266691552,71.392995095027,14078081,sen,Sen,,"не новый, но аккуратный и чистый ремонт",,,,,"Чистая, отличная шикарная квартира, ‼️никогда не сдавалась, порядочным людям, без детей, депозит, ком услуги включены в эту сумму","[""https://krisha-photos.kcdn.online/webp/0e/0e9936d6-8ab2-4201-bc28-822a3c924f23/1-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0e/0e9936d6-8ab2-4201-bc28-822a3c924f23/2-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0e/0e9936d6-8ab2-4201-bc28-822a3c924f23/3-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0e/0e9936d6-8ab2-4201-bc28-822a3c924f23/4-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0e/0e9936d6-8ab2-4201-bc28-822a3c924f23/5-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0e/0e9936d6-8ab2-4201-bc28-822a3c924f23/6-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0e/0e9936d6-8ab2-4201-bc28-822a3c924f23/7-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0e/0e9936d6-8ab2-4201-bc28-822a3c924f23/8-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0e/0e9936d6-8ab2-4201-bc28-822a3c924f23/9-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0e/0e9936d6-8ab2-4201-bc28-822a3c924f23/10-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0e/0e9936d6-8ab2-4201-bc28-822a3c924f23/11-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0e/0e9936d6-8ab2-4201-bc28-822a3c924f23/12-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0e/0e9936d6-8ab2-4201-bc28-822a3c924f23/13-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0e/0e9936d6-8ab2-4201-bc28-822a3c924f23/14-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0e/0e9936d6-8ab2-4201-bc28-822a3c924f23/15-full.jpg"", ""https://krisha-photos.kcdn.online/webp/0e/0e9936d6-8ab2-4201-bc28-822a3c924f23/16-full.jpg""]",16,a67e9d1262bf4f71719168dd757ed7a4ed67cd17ef662abe3d98cf07f4cb109c,,"Калиахметова Шолпан, компания «Агентство недвижимости TERRA»",False,2026-08-22,2026-08-22,2026-08-22,live,2026-08-23T16:38:43+00:00,300000.0,280000.0,20000.0,2026-08-23T16:39:41+00:00,slow_track,price_drop,[],False,чистовая,[],[],"{""pets"": ""без детей"", ""security"": ""порядочным людям""}",False,False

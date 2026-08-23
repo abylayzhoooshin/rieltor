@@ -5216,5 +5216,164 @@
         "security": "спокойным, непьющим"
       }
     }
+  },
+  "1014024995": {
+    "text_hash": "e02396e9df5fdcda3b61b0a7d8cff96812ae2edd1038106e5549987b4a78c19a",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "deposit_required": "Депозит",
+        "legal_assistance": "Юридическое оформление и прозрачность гарантированы",
+        "agent_fee": "Агентское сопровождение сделки-50.000 тенге"
+      }
+    }
+  },
+  "1014994477": {
+    "text_hash": "25252ac385b202c0d77341869970b098c4f55c3a2af5276ad63a40459fa02bf7",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "metro": "Нурлы жол",
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "1007998427": {
+    "text_hash": "c55d47152e688cb4d58c73dce935050f7bf9658053d90a06c26a8cf3ebc89f25",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "pets": "некурящим, без вредных привычек",
+        "metro": "возле Триумфальная арка"
+      }
+    }
+  },
+  "1015040165": {
+    "text_hash": "65a2a0e49cdd2fbf06dcd835c8f513d73760f377c89ddb622e8c043054611038",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт"
+      ],
+      "extra_attributes": {
+        "metro": "рядом находится",
+        "school": "30, 22, 28, 51 школа, дворец школьников",
+        "store": "ТД Рахмет, Евразия",
+        "balcony": "Большая лоджия",
+        "pets": "с детьми 3-х лет",
+        "floor": "1 этаж на уровне 2-го"
+      }
+    }
+  },
+  "698334576": {
+    "text_hash": "6105ea4e9acc4e0a50f3e1b5aeefd77014d87e3eb6a4735862bf96fec1f32db1",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "свежий ремонт",
+        "новая мебель"
+      ],
+      "extra_attributes": {
+        "metro": "рядом всё есть",
+        "deposit": "50.000тг",
+        "agent_fee": "20%",
+        "move_in_date": "27.08.2026",
+        "furniture": "полностью"
+      }
+    }
+  },
+  "1007545069": {
+    "text_hash": "c9402be6e78720039066a4da74264750d502957ff5d03954f58e8e5f412da4c3",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "metro": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "1014969613": {
+    "text_hash": "4fc3ca119cd0fcdf498129343061786c2eab7b9b4971da6b6339eeee183dece7",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [
+        "евро-2",
+        "свежий ремонт",
+        "новая мебель",
+        "кухонный гарнитур",
+        "холодильник",
+        "варочная поверхность",
+        "духовой шкаф",
+        "микроволновая печь",
+        "обеденный стол",
+        "двуспальная кровать",
+        "плотные шторы и тюль",
+        "стиральная машина"
+      ],
+      "extra_attributes": {
+        "pets": "нет",
+        "parking": "нет",
+        "view": "большая зона остекления",
+        "metro": "район Нура",
+        "balcony": "нет",
+        "security": "нет",
+        "area": "40 м²",
+        "floor": "4/12",
+        "duration": "длительный срок",
+        "deposit": "100 000 ₸",
+        "furniture": "частично",
+        "utilities": "отдельно"
+      }
+    }
+  },
+  "1014874096": {
+    "text_hash": "74a63cdfa9ef18209a03fffded54712cf0981a37f5bbec0993078d8b4b09aa36",
+    "result": {
+      "finish_type": null,
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "pets": "не указано",
+        "parking": "не указано",
+        "view": "не указано",
+        "metro": "не указано",
+        "balcony": "не указано",
+        "security": "не указано"
+      }
+    }
+  },
+  "1015055834": {
+    "text_hash": "5f710c7aab97d28d78ee921a8dd5c16124388ac753e4c53810e7587dacb4cd2f",
+    "result": {
+      "finish_type": "чистовая",
+      "red_flags": [],
+      "premium_markers": [],
+      "extra_attributes": {
+        "pets": "без детей",
+        "security": "порядочным людям"
+      }
+    }
   }
 }
