@@ -112,8 +112,15 @@ def freshness_sort_key(row):
     return (dt is not None, dt or datetime.min)
 
 
-def find_drop_reason(row):
-    """Возвращает причину отсева (str) или None, если запись годная."""
+def find_drop_reason(row, include_not_live=False):
+    """Возвращает причину отсева (str) или None, если запись годная.
+
+    include_not_live=True: отступление от изначальной методологии —
+    неживые (storage != "live") объявления НЕ отсеиваются, а остаются
+    в выходном файле (с проставленным is_live=False), чтобы сохранить
+    полноту исторических данных для последующей оценки. Осознанно
+    принято 2026-09 взамен старого поведения (см. докстринг файла).
+    """
     price = to_float(row.get("price"))
     square = to_float(row.get("square_m2"))
     rooms = row.get("rooms")
@@ -126,7 +133,7 @@ def find_drop_reason(row):
         return "no_rooms"
 
     storage = (row.get("storage") or "").strip()
-    if storage and storage != "live":
+    if not include_not_live and storage and storage != "live":
         return f"not_live (storage={storage})"
 
     return None
@@ -135,7 +142,7 @@ def find_drop_reason(row):
 # ============================== ОСНОВНАЯ ЛОГИКА ==============================
 
 
-def clean(rows):
+def clean(rows, include_not_live=False):
     kept = []
     dropped = []
 
@@ -164,13 +171,19 @@ def clean(rows):
                 dropped.append({**stale, "drop_reason": "duplicate_id"})
         freshest = group[0]
 
-        reason = find_drop_reason(freshest)
+        reason = find_drop_reason(freshest, include_not_live=include_not_live)
         if reason:
             dropped.append({**freshest, "drop_reason": reason})
             continue
 
         row = dict(freshest)
         row["is_installment_segment"] = is_installment_segment(row)
+        # Явный флаг, даже когда include_not_live=True и неживые строки
+        # остаются в файле — чтобы дальше по пайплайну (Stage 2/3) можно
+        # было при желании отличить живые объявления от архивных, не
+        # перечитывая заново поле storage.
+        storage = (row.get("storage") or "").strip()
+        row["is_live"] = (not storage) or (storage == "live")
         kept.append(row)
 
     return kept, dropped
@@ -186,14 +199,14 @@ def write_csv(path, rows, fieldnames):
 # ============================== MAIN ==============================
 
 
-def run(input_path, output_path):
+def run(input_path, output_path, include_not_live=False):
     rows = load_rows(input_path)
     print(f"Загружено записей: {len(rows)}")
 
-    kept, dropped = clean(rows)
+    kept, dropped = clean(rows, include_not_live=include_not_live)
 
     input_fieldnames = list(rows[0].keys()) if rows else []
-    write_csv(output_path, kept, input_fieldnames + ["is_installment_segment"])
+    write_csv(output_path, kept, input_fieldnames + ["is_installment_segment", "is_live"])
 
     dropped_path = output_path.rsplit(".", 1)[0] + ".dropped.csv"
     write_csv(dropped_path, dropped, input_fieldnames + ["drop_reason"])
@@ -207,9 +220,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", default="krisha_astana_detail.csv")
     parser.add_argument("--output", default="krisha_astana_clean.csv")
+    parser.add_argument(
+        "--include-not-live",
+        action="store_true",
+        help="не отсеивать archived/неживые объявления (storage != 'live'); "
+             "они остаются в выводе с колонкой is_live=False",
+    )
     args = parser.parse_args()
     try:
-        run(args.input, args.output)
+        run(args.input, args.output, include_not_live=args.include_not_live)
     except FileNotFoundError as e:
         print(f"❌ Файл не найден: {e}")
         sys.exit(1)
