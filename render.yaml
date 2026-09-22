@@ -1,0 +1,88 @@
+# Render Blueprint. Создать сервис: Render Dashboard -> New -> Blueprint,
+# указать этот репозиторий. Render прочитает файл и заведёт сервис сам.
+#
+# Тип сервиса — worker (Background Worker), а не web. Оркестратор не
+# слушает HTTP: он бесконечно опрашивает rieltorcollector раз в 60 секунд.
+# Free web service Render усыпляет через 15 минут без входящих запросов и
+# не даёт постоянный диск — для постоянного опроса это не подходит.
+services:
+  - type: worker
+    name: rieltor-orchestrator
+    runtime: python
+    # Starter (512 МБ) хватает: baseline в памяти занимает ~90 МБ объектов,
+    # пик при загрузке ~101 МБ (замерено tracemalloc на 13 390 строках).
+    plan: starter
+    # Регион желательно тот же, где уже живут rieltorcollector и
+    # rieltor-cleaner — иначе каждый запрос к ним идёт через океан.
+    region: frankfurt
+    buildCommand: pip install -r requirements.txt
+    startCommand: python orchestrator_v7.py
+    autoDeploy: true
+
+    # ПОСТОЯННЫЙ ДИСК — обязателен.
+    #
+    # Файловая система Render пересоздаётся при каждом деплое и рестарте.
+    # Без диска при первом же передеплое обнулились бы:
+    #   ever_sent_ids.json      — реестр отправленных (бот начал бы слать
+    #                             заново то, что уже отправлял);
+    #   collector_state.json    — курсор ленты событий;
+    #   notifications_log_v3.csv — журнал отправок;
+    #   baseline/               — скачанный эталон (28 МБ заново каждый раз).
+    #
+    # 1 ГБ с запасом: baseline ~28 МБ + журналы, которые растут медленно.
+    disk:
+      name: rieltor-data
+      mountPath: /var/data
+      sizeGB: 1
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+
+      # Логи Render читает из stdout. Без этого печать оркестратора
+      # буферизуется и в панели появляется с задержкой в минуты.
+      - key: PYTHONUNBUFFERED
+        value: "1"
+
+      # Куда складывать всё изменяемое состояние. Совпадает с mountPath
+      # диска выше. Локально переменная не задаётся, и всё пишется рядом
+      # со скриптом, как раньше.
+      - key: KRISHA_DATA_DIR
+        value: /var/data
+
+      # --- секреты: sync: false означает "Render спросит значение при
+      # --- создании сервиса и не будет хранить его в git" ---
+
+      # Источник объявлений. Без него оркестратор не стартует.
+      - key: RIELTOR_COLLECTOR_URL
+        sync: false
+      - key: RIELTOR_COLLECTOR_API_KEY
+        sync: false
+
+      # Источник baseline. Ключ обязателен: сам файл baseline в git не
+      # лежит (28 МБ, пересобирается раз в 12 часов), поэтому на чистом
+      # диске взять его можно только отсюда.
+      - key: RIELTOR_CLEANER_API_KEY
+        sync: false
+
+      # Stage 2 — разбор описаний объявлений. Без него оркестратор не стартует.
+      - key: OPENAI_API_KEY
+        sync: false
+
+      # Доставка. Если не задать обе — оркестратор работает молча:
+      # пишет журнал и реестр, но ничего не отправляет.
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+
+      # --- необязательные, у всех есть разумные умолчания в коде ---
+      - key: OPENAI_MODEL
+        value: gpt-5-mini
+      # "end" — при первом запуске встать в конец ленты и не разбирать
+      # всю историю. На чистом диске это важно: с "beginning" первый
+      # запуск прогнал бы через LLM всю накопленную ленту событий.
+      - key: COLLECTOR_START_FROM
+        value: end
+      - key: COLLECTOR_POLL_INTERVAL_SEC
+        value: "60"

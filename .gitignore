@@ -1,0 +1,29 @@
+# --- секреты ---
+.env
+
+# --- служебное ---
+__pycache__/
+*.pyc
+*.tmp
+*.download
+.venv/
+.idea/
+
+# --- эталонный датасет ---
+# 28 МБ, пересобирается сервисом rieltor-cleaner раз в 12 часов и
+# скачивается оркестратором на старте (GET /baseline/clean.csv).
+# В git не держим: каждое обновление добавляло бы в историю ещё 28 МБ.
+baseline/*.csv
+baseline/*.download
+
+# --- изменяемое состояние прогона ---
+# Живёт на постоянном диске Render (KRISHA_DATA_DIR=/var/data), локально —
+# рядом со скриптом. В git не нужно: это не код, а данные конкретного
+# запуска, и коммиты по ним конфликтовали бы при каждом прогоне.
+cache/
+ever_sent_ids.json
+collector_state.json
+baseline_state.json
+notifications_log_v2.csv
+notifications_log_v3.csv
+apartments_table.csv

@@ -180,20 +180,16 @@ FULL_CREDIBILITY_N, вес L3, полное отключение L5) сдвиг�
     L1/2  — «первая когорта»: объединение точных совпадений по зданию
             (complex_key ИЛИ street+house_num ИЛИ, если ни того ни
             другого нет, координаты в пределах 75 м) с той же комнатностью
-            (бывшие L1/2 и L2b). Квартиры другой комнатности этого дома
-            (бывший L2.5 с пересчётом через городские медианы) больше не
-            берутся: замер показал, что без них точность не хуже, а
-            пересчёт держался на непроверяемом допущении. Если в доме нет
-            ни одной квартиры этой комнатности, L1/2 пуст.
-    L3    — радиус 0.5 км, та же комнатность, ТОТ ЖЕ КЛАСС ЗДАНИЯ,
-            площадь в пределах AREA_WINDOW_RATIO от площади цели.
-    L4    — радиус 1 км, та же комнатность, тот же класс здания, то же окно.
-    L5    — радиус 3 км + сужение по цене, та же комнатность, тот же класс,
-            то же окно.
-    L6    — весь город, та же комнатность, тот же класс, то же окно.
-
-Класс здания при этом по-прежнему считается по ВСЕМ комнатностям дома —
-это отдельный путь, отбор аналогов на него не влияет.
+            (бывшие L1/2 и L2b) ПЛЮС L2.5 — то же здание, ДРУГАЯ
+            комнатность, price_m2 пересчитан через отношение ГОРОДСКИХ
+            медиан по комнатности. L2.5 отбирается чисто структурно
+            (то же здание, другая комнатность) и только потом один раз
+            получает городской (не локальный) коэффициент пересчёта —
+            цена конкретного дома никак не влияет на свой же бенчмарк.
+    L3    — радиус 0.5 км, та же комнатность, ТОТ ЖЕ КЛАСС ЗДАНИЯ.
+    L4    — радиус 1 км, та же комнатность, тот же класс здания.
+    L5    — радиус 3 км + сужение по цене, та же комнатность, тот же класс.
+    L6    — весь город, та же комнатность, тот же класс.
 
 Порядок работы:
     1. Определяется класс здания основной квартиры — по ВСЕМ комнатностям
@@ -226,7 +222,6 @@ FULL_CREDIBILITY_N, вес L3, полное отключение L5) сдвиг�
 import argparse
 import csv
 import math
-import random
 import re
 import statistics
 import sys
@@ -250,8 +245,9 @@ from datetime import datetime, timezone
 # benchmark, it just doesn't authorize a stop.
 #
 # MIN_COHORT_L12 / L2B / L25 are gone as separate stop-gates: L1/2 is now
-# a single first cohort (exact building matches, same room count) and
-# NEVER stops the cascade — L3 is always collected after it (ТЗ п.1).
+# a single merged first cohort (exact building matches + L2.5 rescaled
+# other-room matches) and NEVER stops the cascade — L3 is always
+# collected after it (ТЗ п.1).
 MIN_COHORT_L3 = 4
 MIN_COHORT_L4 = 5
 MIN_COHORT_L5 = 6
@@ -267,12 +263,15 @@ MIN_COHORT_L5 = 6
 # The numbers are not free-hand: they are chosen so the hierarchy is
 # PROVABLE, not merely typical. The smallest multiplier a level can ever
 # suffer from the other factors is
-#     min over n of  quantity_factor(n_eff) × homogeneity_weight
-# which is 0.25 on every level. Each step down the ladder therefore
-# multiplies the level weight by less than 0.14, so no attainable
-# combination of size and homogeneity can let a wider cohort outweigh a
-# tighter one. verify_weight_hierarchy() checks this numerically on every
-# run.
+#     min over n of  purity × quantity_factor(n_eff) × homogeneity_weight
+# For L1/2 the purity discount (RESCALE_TRUST, applied when the cohort is
+# made entirely of rescaled cross-room comparables) compounds with the
+# reduced effective count it causes, bottoming out near 0.15; for every
+# other level purity is 1 and the bound is 0.25. Each step down the
+# ladder therefore multiplies the level weight by less than 0.14, so no
+# attainable combination of size, homogeneity and purity can let a wider
+# cohort outweigh a tighter one. verify_weight_hierarchy() checks this
+# numerically — including the all-rescaled worst case — on every run.
 LEVEL_WEIGHT = {
     "1-2": 1.00,
     "3": 0.130,
@@ -428,15 +427,24 @@ CLASS_MATCH_THRESHOLD = 0.25
 # matters on the current baseline (see prior_medians_by_rooms_class()).
 MIN_FOR_PRIOR_CELL = 20
 
-# Квартиры ДРУГОЙ комнатности в когорту сравнения больше не попадают.
-# Раньше L1/2 добирал их из того же дома и пересчитывал цену через
-# отношение городских медиан по комнатности (RESCALE_TRUST = 0.72). Замер
-# на 2500 объявлениях, выведенных из пула: без пересчёта медианная ошибка
-# 0.1019 против 0.1036, то есть не хуже, а механизм держался на допущении,
-# что городское отношение переносится на конкретный дом, и оставлял
-# необъяснённый перекос по площади. Класс здания при этом по-прежнему
-# считается по ВСЕМ комнатностям дома (building_class_from_listings) —
-# это другой путь, он не затронут.
+# How much a cross-room comparable rescaled through citywide medians is
+# worth relative to a direct same-room comparable in the same building.
+#
+# Measured, not chosen. On krisha_astana_baseline.csv (7047 usable
+# listings, 2087 buildings) every within-building pair was formed twice:
+# directly (same room count, 34 586 pairs) and through the rescale (other
+# room count projected via the citywide room-median ratio, 53 040 pairs).
+# The robust spread of log price ratios was 0.214 for direct pairs and
+# 0.254 for rescaled ones; the inverse-variance relative weight is
+# therefore 0.214^2 / 0.254^2 = 0.71. Re-estimated nine ways (MAD-based,
+# IQR-based and plain stdev scale; all pairs, and buildings with >=5
+# listings only) it stayed inside [0.705, 0.750].
+# 0.72 is the centre of that band.
+#
+# Re-derive alongside CREDIBILITY_K if the tool is pointed at another
+# market — how well a citywide room ratio transfers to one building is a
+# property of the data.
+RESCALE_TRUST = 0.72
 
 # L3 is now a tight radius rather than "same street". Measured on
 # krisha_astana_baseline.csv: Astana's avenues run 8-11 km end to end
@@ -475,44 +483,13 @@ MIN_FOR_PRIOR_CELL = 20
 # The slope is re-estimated from the pool at runtime rather than frozen
 # here — it is a property of the market, and the numbers above are only
 # what this baseline produced.
-#
-# v6: наклон теперь оценивается ВНУТРИ домов, а не по городу. Городская
-# регрессия смешивает размер с качеством дома (крупные квартиры стоят в
-# дорогих домах), и это гасило настоящий эффект: по baseline
-#     комнат   по городу (было)   внутри домов (стало)
-#       1к         -0.43              -0.68
-#       2к         -0.51              -0.56
-#       3к         +0.02              -0.47..-0.56
-#       4к         +0.12              -0.32 (интервал накрывает 0)
-# Для 3к городская оценка попадала в мёртвую зону и поправка отключалась,
-# для 4к получалась с обратным знаком. См. area_slopes_by_rooms().
-#
-# Оценка принимается, только если она надёжна: домов не меньше
-# AREA_SLOPE_MIN_BUILDINGS, точек не меньше AREA_SLOPE_MIN_POINTS и верхняя
-# граница 95% доверительного интервала (бутстрап ПО ДОМАМ: объявления
-# внутри одного дома не независимы) ниже AREA_SLOPE_CI_HI_MAX. Иначе
-# комнатность получает общую оценку по всем комнатностям сразу.
-AREA_SLOPE_MIN_BUILDINGS = 30
-AREA_SLOPE_MIN_POINTS = 300
-AREA_SLOPE_CI_HI_MAX = -0.05
-AREA_SLOPE_BOOTSTRAP_N = 200
-# Внутри домов группа нужна с разбросом площадей, иначе про наклон нечего
-# сказать: log-разброс площадей в группе не меньше этого значения (~5%).
-AREA_SLOPE_MIN_LOG_SPREAD = 0.05
+MIN_AREA_MODEL_N = 200
+# Below this |slope| the effect is not distinguishable from noise and no
+# correction is applied at all, which is what keeps 3к/4к untouched.
+AREA_SLOPE_DEADZONE = 0.05
 # Slopes outside this range would be an artefact, not a market effect.
-AREA_SLOPE_MIN = -0.90
-# Положительная эластичность внутри комнатности — не эффект рынка, а
-# признак смешения с чем-то ещё (так у 4к получалось +0.12), поэтому
-# верхняя граница — ноль: худшее, что может случиться, это отказ от
-# поправки, а не поправка в обратную сторону.
-AREA_SLOPE_MAX = 0.0
-
-# Окно по площади для уровней L3 и шире: аналог берётся только если его
-# площадь в пределах [A / R, A * R] от площади оцениваемой квартиры.
-# Однокомнатная 35 м² не сравнивается с однокомнатной 50 м². Уровень L1/2
-# (тот же дом) окном не ограничивается — там площадь выравнивает поправка.
-# None или 0 — окно выключено.
-AREA_WINDOW_RATIO = 1.20
+AREA_SLOPE_MIN = -0.80
+AREA_SLOPE_MAX = 0.20
 # Hard bound on how far one comparable may be moved. A 2x area gap
 # already sits at the edge of "same kind of flat"; beyond that the
 # listing is not really comparable and the correction should not pretend
@@ -844,6 +821,9 @@ OUTPUT_EXTRA_FIELDNAMES = [
     "l12_adjusted_median",
     "l12_credibility",
     "l12_weight",
+    "l12_direct_n",
+    "l12_rescaled_n",
+    "l12_purity",
     "l3_n",
     "l3_median",
     "l3_adjusted_median",
@@ -1010,34 +990,25 @@ def normalize_street(value, strip_trailing_number=True):
 
 def weighted_median(pairs):
     """Median of (value, weight) pairs — the value at which cumulative
-    weight first reaches half of the total; when it lands exactly on half,
-    the mean of the two neighbouring values (как у обычной медианы).
+    weight first reaches half of the total.
 
-    Нужна там, где наблюдения не равноправны: например, across cohorts an
-    L6 listing is worth a fraction of an L1/2 one, и обычная медиана
-    молча отдала бы центр оценки самой многочисленной группе, обычно
-    наименее надёжной.
+    Needed in three places that all have the same problem: a plain median
+    treats every listing as one vote, but our listings are not equal
+    votes. Inside a cohort a rescaled cross-room comparable is worth less
+    than a direct one; across cohorts an L6 listing is worth a fraction
+    of an L1/2 one. Using a plain median there silently hands the centre
+    of the estimate to whichever group happens to be most numerous, which
+    is usually the least trustworthy one.
     """
     pairs = [(v, w) for v, w in pairs if v is not None and w and w > 0]
     if not pairs:
         return None
     pairs.sort(key=lambda vw: vw[0])
     total = sum(w for _, w in pairs)
-    half = total / 2.0
     acc = 0.0
-    for i, (value, weight) in enumerate(pairs):
+    for value, weight in pairs:
         acc += weight
-        if acc > half + 1e-12:
-            return value
-        if abs(acc - half) <= 1e-12:
-            # Накопленный вес ровно на половине — граница между двумя
-            # значениями, и медиана лежит между ними. Раньше здесь
-            # возвращалось нижнее из двух: для чётного числа аналогов с
-            # равными весами это давало НИЖНЮЮ из двух средних цен, а для
-            # двух объявлений в доме — просто минимум из них. Систематический
-            # сдвиг базы вниз, то есть избыток вердиктов «переоценена».
-            if i + 1 < len(pairs):
-                return (value + pairs[i + 1][0]) / 2.0
+        if acc >= total / 2.0:
             return value
     return pairs[-1][0]
 
@@ -1148,13 +1119,7 @@ def seller_class(row):
     if any(x in seller for x in ("agent", "риел", "агент", "company", "компан")):
         return "agent", 0.90, "seller_type указывает на агентство/риелтора"
     if owner:
-        # На этом рынке owner_name принимает только два вида значений:
-        # ровно "Хозяин" или конкретное имя/компания — промежуточных
-        # форм не бывает (проверено на baseline: 9103 строки "Хозяин",
-        # 4305 строк с именем, ни одной смешанной). Раз хозяин никогда
-        # не подписывается своим именем, наличие имени здесь — надёжный
-        # маркер агента/риелтора, а не слабое предположение.
-        return "agent", 1.0, "указано конкретное имя вместо 'Хозяин'"
+        return "agent", 0.80, "указано конкретное имя вместо 'Хозяин'"
     return "unknown", 0.35, "маркер владельца/риелтора не определён"
 
 
@@ -1876,7 +1841,8 @@ def credibility_weight(n):
     below it shrinkage applies at all; it does not appear in this
     formula, which approaches 1 asymptotically rather than at a cutoff.)
 
-    Used in analyze_cohorts to blend each cohort's own (owner-)adjusted median toward the (room count x building class)
+    Used in analyze_cohorts to blend each cohort's own (purity- and
+    owner-)adjusted median toward the (room count x building class)
     prior: adjusted_median = Z*median + (1-Z)*prior. This runs inside
     EVERY level of the cascade — a thin L1/2 is tempered before it
     reaches the cross-level blend, not just the level the cascade
@@ -1986,122 +1952,60 @@ def _class_filtered(candidates, score_index, target_score, target_n):
     return out
 
 
-def median_area_by_rooms(pool):
-    """Медианная площадь по комнатности — «типовая» квартира этой
-    комнатности. К ней привязан приор (медиана цены за м² по ячейке
-    «комнатность × класс»): это цена для типовой площади, и чтобы сравнить
-    её с конкретной квартирой, её нужно перевести на площадь этой квартиры
-    (см. analyze_cohorts)."""
-    areas = defaultdict(list)
-    for r in pool:
-        square = to_float(r.get("square_m2"))
-        if r.get("_rooms") is not None and square and square > 0:
-            areas[r["_rooms"]].append(square)
-    return {rooms: statistics.median(v) for rooms, v in areas.items() if v}
+def area_slopes_by_rooms(pool):
+    """Estimate, per room count, the elasticity of price/m² with respect
+    to floor area: the slope b of log(price_m2) ~ b * log(square).
 
+    Winsorized least squares — the top and bottom 1% of both area and
+    price are dropped before fitting, so a single 300 m² penthouse or a
+    mistyped area cannot tilt the line. Checked against Theil-Sen on the
+    same data: the two agree in sign and stay within about 0.09 of each
+    other on every room count with enough listings.
 
-AREA_SLOPE_BOOTSTRAP_SEED = 20260920
-
-
-def _slope_from_clusters(clusters):
-    """Наклон по группам: сумма Σxy / Σxx по уже центрированным точкам."""
-    sxy = sum(c[0] for c in clusters)
-    sxx = sum(c[1] for c in clusters)
-    return sxy / sxx if sxx > 0 else None
-
-
-def area_slopes_by_rooms(pool, notes=None):
-    """Эластичность цены за м² по площади, отдельно для каждой
-    комнатности: наклон b в log(price_m2) ~ b * log(square).
-
-    Оценка ВНУТРИ домов (fixed effects). Городская регрессия смешивала
-    размер квартиры с качеством дома: крупные квартиры сосредоточены в
-    дорогих домах, и это качество прилипало к коэффициенту площади,
-    занижая его по модулю (у 3к до нуля, у 4к до обратного знака). Здесь
-    квартиры группируются по паре «дом × комнатность», из площади и цены
-    вычитаются средние по группе — после этого от дома не остаётся ничего
-    — и регрессия строится по остаткам.
-
-    В расчёт идут группы от трёх объявлений с разбросом площадей не
-    меньше AREA_SLOPE_MIN_LOG_SPREAD: без разброса про размер сказать нечего.
-
-    Правило отказа. Оценка комнатности принимается, только если она
-    надёжна: домов не меньше AREA_SLOPE_MIN_BUILDINGS, точек не меньше
-    AREA_SLOPE_MIN_POINTS, а верхняя граница 95% интервала ниже
-    AREA_SLOPE_CI_HI_MAX. Интервал — бутстрап ПО ДОМАМ, а не по строкам:
-    объявления одного дома не независимы, и бутстрап по строкам занижает
-    неопределённость (у 4к он пропускал оценку, интервал которой на деле
-    накрывает ноль). Отвергнутая комнатность получает общую оценку по всем
-    комнатностям сразу; комнатность без единой пригодной группы поправки не
-    получает вовсе.
-
-    `notes`, если передан список, пополняется строкой на каждую
-    комнатность — почему принята своя оценка или взята общая.
+    Room counts with fewer than MIN_AREA_MODEL_N listings get no slope,
+    and slopes inside AREA_SLOPE_DEADZONE are returned as 0.0 — that is
+    what leaves 3- and 4-room flats alone, where the measured effect is
+    indistinguishable from zero.
     """
-    groups = defaultdict(list)
+    by_rooms = defaultdict(list)
     for r in pool:
         square = to_float(r.get("square_m2"))
-        pm2 = r.get("_price_m2")
-        rooms = r.get("_rooms")
-        key = _building_key(r)
         if (
-            rooms is None or key is None or not pm2 or pm2 <= 0
-            or not square or square < SQUARE_ABS_MIN
+            r.get("_rooms") is not None
+            and r.get("_price_m2") is not None and r["_price_m2"] > 0
+            and square is not None and square > 15
         ):
-            continue
-        groups[(key, rooms)].append((math.log(square), math.log(pm2)))
+            by_rooms[r["_rooms"]].append((square, r["_price_m2"]))
 
-    # Для каждой группы хватает трёх чисел: Σxy, Σxx и число точек — этого
-    # достаточно и для оценки наклона, и для бутстрапа по домам.
-    clusters = defaultdict(list)
-    for (_key, rooms), pts in groups.items():
-        xs = [x for x, _ in pts]
-        if len(pts) < 3 or max(xs) - min(xs) < AREA_SLOPE_MIN_LOG_SPREAD:
-            continue
-        mx = statistics.mean(xs)
-        my = statistics.mean(y for _, y in pts)
-        sxy = sum((x - mx) * (y - my) for x, y in pts)
-        sxx = sum((x - mx) ** 2 for x, _ in pts)
-        clusters[rooms].append((sxy, sxx, len(pts)))
-
-    everything = [c for cs in clusters.values() for c in cs]
-    pooled = _slope_from_clusters(everything)
-    if pooled is not None:
-        pooled = max(AREA_SLOPE_MIN, min(AREA_SLOPE_MAX, pooled))
-
-    rng = random.Random(AREA_SLOPE_BOOTSTRAP_SEED)
     slopes = {}
-    for rooms, cs in clusters.items():
-        own = _slope_from_clusters(cs)
-        npts = sum(c[2] for c in cs)
-
-        hi = None
-        if len(cs) >= 8:
-            draws = []
-            for _ in range(AREA_SLOPE_BOOTSTRAP_N):
-                s = _slope_from_clusters([cs[rng.randrange(len(cs))] for _ in cs])
-                if s is not None:
-                    draws.append(s)
-            if draws:
-                draws.sort()
-                hi = draws[int(0.975 * len(draws))]
-
-        reliable = (
-            own is not None
-            and len(cs) >= AREA_SLOPE_MIN_BUILDINGS
-            and npts >= AREA_SLOPE_MIN_POINTS
-            and hi is not None and hi < AREA_SLOPE_CI_HI_MAX
-        )
-        if reliable:
-            slopes[rooms] = max(AREA_SLOPE_MIN, min(AREA_SLOPE_MAX, own))
-            verdict = f"своя {slopes[rooms]:+.3f}"
-        elif pooled is not None:
-            slopes[rooms] = pooled
-            verdict = f"общая {pooled:+.3f} (своей мало: домов {len(cs)}, точек {npts})"
-        else:
+    for rooms, points in by_rooms.items():
+        if len(points) < MIN_AREA_MODEL_N:
             continue
-        if notes is not None:
-            notes.append(f"{rooms}к: {verdict}")
+
+        areas = sorted(a for a, _ in points)
+        prices = sorted(p for _, p in points)
+        n = len(points)
+        lo_a, hi_a = areas[int(0.01 * n)], areas[int(0.99 * n) - 1]
+        lo_p, hi_p = prices[int(0.01 * n)], prices[int(0.99 * n) - 1]
+        kept = [
+            (a, p) for a, p in points
+            if lo_a <= a <= hi_a and lo_p <= p <= hi_p
+        ]
+        if len(kept) < MIN_AREA_MODEL_N:
+            continue
+
+        xs = [math.log(a) for a, _ in kept]
+        ys = [math.log(p) for _, p in kept]
+        mx = statistics.mean(xs)
+        my = statistics.mean(ys)
+        denom = sum((x - mx) ** 2 for x in xs)
+        if denom <= 0:
+            continue
+        slope = sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / denom
+        slope = max(AREA_SLOPE_MIN, min(AREA_SLOPE_MAX, slope))
+        if abs(slope) < AREA_SLOPE_DEADZONE:
+            slope = 0.0
+        slopes[rooms] = slope
     return slopes
 
 
@@ -2126,7 +2030,14 @@ def area_adjust_factor(target_square, comparable_square, slope):
 
 
 def _apply_area_adjustment(rows, target, area_slopes):
-    """Project same-room comparables onto the target's floor area."""
+    """Project same-room comparables onto the target's floor area.
+
+    Applied only to direct same-room comparables. Rows that arrived
+    through the cross-room rescale (_rescaled) are skipped on purpose:
+    the citywide room-median ratio they already went through embeds the
+    typical size difference between room counts, so adjusting them again
+    for area would count the same effect twice.
+    """
     target_square = to_float(target.get("square_m2"))
     slope = area_slopes.get(target.get("_rooms")) if area_slopes else None
     if not slope or not target_square:
@@ -2134,7 +2045,7 @@ def _apply_area_adjustment(rows, target, area_slopes):
 
     out = []
     for r in rows:
-        if r.get("_price_m2") is None:
+        if r.get("_rescaled") or r.get("_price_m2") is None:
             out.append(r)
             continue
         factor = area_adjust_factor(
@@ -2150,22 +2061,38 @@ def _apply_area_adjustment(rows, target, area_slopes):
     return out
 
 
-def _within_area_window(rows, target, ratio=None):
-    """Аналоги, площадь которых в пределах [A / ratio, A * ratio] от
-    площади цели. Однокомнатная 35 м² не сравнивается с однокомнатной
-    50 м². Без площади у цели или при выключенном окне (ratio None/0)
-    возвращает rows как есть; у аналога без площади проверить нечего, и
-    при включённом окне он отбрасывается."""
-    ratio = AREA_WINDOW_RATIO if ratio is None else ratio
-    target_square = to_float(target.get("square_m2"))
-    if not ratio or ratio <= 1.0 or not target_square or target_square <= 0:
-        return rows
-    lo, hi = target_square / ratio, target_square * ratio
+def _rescale_other_rooms(rows, target_rooms, citywide_median):
+    """Project listings of a DIFFERENT room count onto the target's room
+    count using the ratio of CITYWIDE medians (the old L2.5 mechanic,
+    unchanged and now folded into L1/2).
+
+    Non-circular by construction: membership was decided structurally
+    (same building, any other room count) and the rescale uses a citywide
+    ratio, never a per-building one, so a building's own asking prices
+    cannot feed back into its own benchmark.
+
+    The rows stay real listings — only _price_m2 is replaced — so every
+    downstream consumer (robust_stats, effective_n, area adjustment)
+    handles them exactly like any other comparable.
+    """
+    target_room_median = citywide_median.get(target_rooms)
+    if not target_room_median:
+        return []
+
     out = []
     for r in rows:
-        square = to_float(r.get("square_m2"))
-        if square is not None and lo <= square <= hi:
-            out.append(r)
+        if r["_rooms"] is None or r["_rooms"] == target_rooms:
+            continue
+        if r["_price_m2"] is None:
+            continue
+        other_room_median = citywide_median.get(r["_rooms"])
+        if not other_room_median:
+            continue
+        adjusted = dict(r)
+        adjusted["_price_m2"] = r["_price_m2"] * (target_room_median / other_room_median)
+        adjusted["_rooms_source"] = r["_rooms"]
+        adjusted["_rescaled"] = True
+        out.append(adjusted)
     return out
 
 
@@ -2194,19 +2121,18 @@ def collect_cohorts(
     Every level is deduplicated against everything already collected
     (ТЗ п.4): the exclusion is by listing id, accumulated across levels,
     and applies regardless of HOW a listing entered an earlier cohort —
-    so no apartment can be counted twice and pick up a double weight.
-
-    Отбор аналогов: везде ТА ЖЕ комнатность. Уровни L3 и шире дополнительно
-    ограничены окном по площади (AREA_WINDOW_RATIO): однокомнатная 35 м²
-    не сравнивается с однокомнатной 50 м². Уровень L1/2 (тот же дом) окном
-    не ограничивается — там разницу площадей выравнивает поправка.
+    so no apartment can be counted twice and pick up a double weight. The
+    one exception by design is a listing that entered L1/2 rescaled from
+    another room count: it is keyed by the same id and therefore still
+    blocked from reappearing later.
     """
     notes = []
 
+    # L1/2 needs rows of OTHER room counts too, so the self-exclusion runs
+    # once, up front, against the WHOLE pool rather than an already
+    # room-filtered list.
     candidates_all = [r for r in pool if not same_target_id(r, target)]
     comparable_rooms = [r for r in candidates_all if r["_rooms"] == target["_rooms"]]
-    # Кандидаты для L3 и шире: та же комнатность И близкая площадь.
-    comparable_windowed = _within_area_window(comparable_rooms, target)
 
     if building_index is not None:
         building_member_ids = {
@@ -2297,15 +2223,23 @@ def collect_cohorts(
 
     cohorts = []
 
-    # ---- L1/2: the "first cohort" ------------------------------------
+    # ---- L1/2: the merged "first cohort" -----------------------------
     # Exact building matches with the same room count (what used to be
     # L1/2 and L2b — complex_key match and street+house_num match are the
-    # same physical claim, so they are no longer two competing levels).
-    # Квартиры другой комнатности из этого дома сюда больше не попадают
-    # (бывший L2.5 с пересчётом через городские медианы убран, см. выше
-    # блок про пересчёт). Если в доме нет ни одной квартиры этой
-    # комнатности, L1/2 пуст, и оценку несут L3 и шире.
-    l12 = take([r for r in comparable_rooms if in_target_building(r)])
+    # same physical claim, so they are no longer two competing levels),
+    # PLUS the rescaled other-room listings of that same building (L2.5).
+    # Merging them means a building with 3 same-room and 4 other-room
+    # listings now produces one 7-listing first cohort instead of
+    # skipping straight to a street-level match.
+    l12_same_rooms = [r for r in comparable_rooms if in_target_building(r)]
+    l12_other_rooms = []
+    if target["_rooms"] is not None:
+        l12_other_rooms = _rescale_other_rooms(
+            [r for r in candidates_all if in_target_building(r)],
+            target["_rooms"],
+            citywide_median,
+        )
+    l12 = take(l12_same_rooms) + take(l12_other_rooms)
     if l12:
         cohorts.append({"level": "1-2", "rows": l12})
 
@@ -2324,7 +2258,7 @@ def collect_cohorts(
     # Class filtering is strict (ТЗ п.7/п.12): a short L3 stays short and
     # hands over to L4 rather than being padded with other-class
     # buildings.
-    l3_candidates = within_radius(comparable_windowed, RADIUS_L3_KM)
+    l3_candidates = within_radius(comparable_rooms, RADIUS_L3_KM)
     l3 = take(_class_filtered(l3_candidates, score_index, target_score, target_n))
     if l3:
         cohorts.append({"level": "3", "rows": l3})
@@ -2333,7 +2267,7 @@ def collect_cohorts(
 
     # ---- L4: 1 km radius, same room count, same class ----------------
     if has_coords:
-        l4_candidates = within_radius(comparable_windowed, RADIUS_L4_KM)
+        l4_candidates = within_radius(comparable_rooms, RADIUS_L4_KM)
         l4 = take(
             _class_filtered(l4_candidates, score_index, target_score, target_n)
         )
@@ -2360,7 +2294,7 @@ def collect_cohorts(
             lo = median_for_rooms * (1 - PRICE_RANGE_L5_PCT)
             hi = median_for_rooms * (1 + PRICE_RANGE_L5_PCT)
             l5_candidates = [
-                r for r in within_radius(comparable_windowed, RADIUS_L5_KM)
+                r for r in within_radius(comparable_rooms, RADIUS_L5_KM)
                 if r["_price_m2"] is not None and lo <= r["_price_m2"] <= hi
             ]
             l5 = take(
@@ -2372,7 +2306,7 @@ def collect_cohorts(
                 return cohorts, "5", notes
 
     # ---- L6: citywide, same room count, same class (terminal) --------
-    l6 = take(_class_filtered(comparable_windowed, score_index, target_score, target_n))
+    l6 = take(_class_filtered(comparable_rooms, score_index, target_score, target_n))
     if l6:
         cohorts.append({"level": "6", "rows": l6})
     return cohorts, "6", notes
@@ -2612,11 +2546,13 @@ def cohort_homogeneity_factor(level, dispersion):
     if dispersion is None:
         return 1.0
     if level in ("1-2", "2b", "2.5"):
-        # Значения 0.24/0.35 подобраны, когда L1/2 ещё содержал пересчитанные
-        # квартиры другой комнатности (между старым L1/2 0.22/0.32 и старым
-        # L2.5 0.26/0.38). Пересчёта больше нет, так что порог, возможно,
-        # можно вернуть к 0.22/0.32, но без перекалибровки по замеру их не
-        # трогаю: это меняет шкалу уверенности.
+        # L1/2 now merges exact same-room building matches with rescaled
+        # other-room ones. The rescale step adds noise of its own (a
+        # citywide room-count ratio isn't guaranteed to hold exactly for
+        # one specific building), so the merged first cohort gets a
+        # little more room than a pure same-room match had before
+        # treating dispersion as suspicious — sitting between the old
+        # L1/2 (0.22/0.32) and the old L2.5 (0.26/0.38) values.
         moderate, severe = 0.24, 0.35
     elif level == "3":
         moderate, severe = 0.22, 0.32
@@ -2693,21 +2629,29 @@ def homogeneity_weight(dispersion, level):
     return max(HOMOGENEITY_FLOOR, min(1.0, factor))
 
 
-def cohort_weight(level, eff_n, dispersion):
+def cohort_weight(level, eff_n, dispersion, purity=1.0):
     """Final weight of one cohort in the blended benchmark (ТЗ п.11):
 
-        level weight  ×  quantity  ×  homogeneity
+        level weight  ×  purity  ×  quantity  ×  homogeneity
 
-    (Множитель purity убран вместе с пересчётом из другой комнатности:
-    все аналоги теперь прямые.)
+    `purity` is 1.0 for every level except L1/2, where it is the share of
+    the cohort's effective observations that are direct same-room matches
+    rather than cross-room comparables rescaled through citywide medians
+    (see cohort_purity()). Without it, merging L2.5 into L1/2 handed
+    rescaled proxies the full weight and full level confidence of an
+    exact match — so a building with 2 same-room and 20 other-room
+    listings produced a benchmark that was 90% rescale, flagged as the
+    most trustworthy level available, with nothing in the output to say
+    so.
 
     The level term still dominates by design, so the required hierarchy
     L1/2 ≫ L3 ≫ L4 ≫ L5 ≫ L6 survives every attainable combination of
-    the other two factors (ТЗ п.17) — verify_weight_hierarchy() proves
+    the other three factors (ТЗ п.17) — verify_weight_hierarchy() proves
     it numerically rather than asserting it.
     """
     return (
         LEVEL_WEIGHT.get(level, 0.01)
+        * max(0.0, min(1.0, purity))
         * quantity_factor(eff_n)
         * homogeneity_weight(dispersion, level)
     )
@@ -3082,6 +3026,9 @@ def _empty_cohort_fields():
         fields[f"{prefix}_adjusted_median"] = None
         fields[f"{prefix}_credibility"] = None
         fields[f"{prefix}_weight"] = None
+    fields["l12_direct_n"] = None
+    fields["l12_rescaled_n"] = None
+    fields["l12_purity"] = None
     fields["cohort_levels_used"] = ""
     fields["cohort_breakdown"] = ""
     return fields
@@ -3111,11 +3058,21 @@ def _cohort_output_fields(cohort_infos):
             f"{c['dispersion']:.3f}" if c["dispersion"] is not None else "n/a"
         )
         label = "L1/2" if c["level"] == "1-2" else f"L{c['level']}"
+        if c["level"] == "1-2":
+            fields["l12_direct_n"] = c["direct_n"]
+            fields["l12_rescaled_n"] = c["rescaled_n"]
+            fields["l12_purity"] = round(c["purity"], 3)
+            composition = (
+                f" (прямых {c['direct_n']} + пересчитанных {c['rescaled_n']}, "
+                f"purity={c['purity']:.2f})"
+            )
+        else:
+            composition = ""
         # adj= is the number that actually entered the blend; median=
         # is what the cohort said before shrinkage. Printing only the
         # latter, as v4 did, made the trail unverifiable.
         parts.append(
-            f"{label}: n={c['size']}, "
+            f"{label}: n={c['size']}{composition}, "
             f"eff_n={c['effective_n']:.1f}, "
             f"median={c['median']:.0f}, adj={c['adjusted_median']:.0f} "
             f"(Z={c['credibility']:.2f}), disp={disp}, w={share:.3f}"
@@ -3126,47 +3083,53 @@ def _cohort_output_fields(cohort_infos):
     return fields
 
 
-def cohort_median(values):
-    """Медиана цен когорты. Обычная медиана: для чётного числа аналогов —
-    среднее двух средних. Раньше здесь стояла weighted_median с равными
-    весами, которая для чётного n возвращала НИЖНЕЕ из двух средних (для
-    двух объявлений в доме — минимум), то есть смещала базу вниз."""
-    return statistics.median(values)
+def cohort_purity(rows):
+    """(effective direct count, effective rescaled count, purity) for a
+    cohort, where "rescaled" means a cross-room comparable projected onto
+    the target's room count through citywide medians (the L2.5 mechanic,
+    now merged into L1/2).
 
+    purity = (n_direct + RESCALE_TRUST*n_rescaled) / (n_direct + n_rescaled)
 
-def prior_at_target_area(prior, rooms, target_square, ref_areas, area_slopes):
-    """Приор — медиана цены за м² по ячейке «комнатность × класс», то есть
-    цена для ТИПОВОЙ площади этой комнатности. Аналоги когорты уже
-    приведены к площади цели, а приор нет: у трети оценок он даёт до трети
-    базы, и без проекции размерный эффект, который поправка только что
-    убрала, возвращался бы через него. Проецируем тем же наклоном:
-    prior * (A_цели / A_типовая) ** b."""
-    if not prior or not target_square or not ref_areas or not area_slopes:
-        return prior
-    slope = area_slopes.get(rooms)
-    ref = ref_areas.get(rooms)
-    if not slope or not ref:
-        return prior
-    return prior * area_adjust_factor(target_square, ref, slope)
+    so a cohort of nothing but direct matches scores 1.0 and one of
+    nothing but rescaled proxies scores RESCALE_TRUST. Both counts are
+    owner-aware (effective_n), so the discount composes with, rather than
+    replaces, the independence adjustment of ТЗ п.13.
+    """
+    direct = [r for r in rows if not r.get("_rescaled")]
+    rescaled = [r for r in rows if r.get("_rescaled")]
+    n_direct = effective_n(direct)
+    n_rescaled = effective_n(rescaled)
+    total = n_direct + n_rescaled
+    if total <= 0:
+        return 0, 0, 1.0
+    purity = (n_direct + RESCALE_TRUST * n_rescaled) / total
+    return n_direct, n_rescaled, purity
 
 
 def analyze_cohorts(
     cohorts, citywide_median, target_rooms,
     class_priors=None, building_class_label=None,
-    target_square=None, ref_areas=None, area_slopes=None,
 ):
     """Turn raw collected cohorts into weighted, credibility-adjusted
     building blocks of the final benchmark.
 
-    For each cohort independently (ТЗ п.11, п.13): its median, its own
-    dispersion, its owner-aware effective_n, a shrink of the median toward
-    the prior proportional to the effective count, and finally its weight.
+    For each cohort independently (ТЗ п.11, п.13): its robust median, its
+    own dispersion, its owner-aware effective_n, its purity, a shrink of
+    the median toward the prior proportional to the effective count, and
+    finally its weight.
 
-    The prior is the (room count x building class) median rather than the
-    citywide room median — see prior_medians_by_rooms_class() for why the
-    class-blind prior systematically pushed expensive buildings down and
-    cheap ones up. It is then projected onto the target's floor area
-    (prior_at_target_area), the same way the comparables are.
+    Two things differ from a naive per-cohort summary:
+
+    * The median is a WEIGHTED median — rescaled cross-room comparables
+      count RESCALE_TRUST of a direct match. With a plain median, a
+      building holding 2 same-room and 20 other-room listings had its
+      centre chosen entirely by the rescaled proxies while the two real
+      matches contributed nothing.
+    * The prior is the (room count x building class) median rather than
+      the citywide room median — see prior_medians_by_rooms_class() for
+      why the class-blind prior systematically pushed expensive buildings
+      down and cheap ones up.
 
     Shrinkage lives here, inside each level, rather than as a single
     final step applied to one selected level, so a thin cohort is
@@ -3177,28 +3140,34 @@ def analyze_cohorts(
     prior = cohort_prior(
         target_rooms, building_class_label, class_priors or {}, citywide_median,
     )
-    prior = prior_at_target_area(
-        prior, target_rooms, target_square, ref_areas, area_slopes,
-    )
 
     for cohort in cohorts:
         rows = [r for r in cohort["rows"] if r.get("_price_m2") is not None]
         if not rows:
             continue
 
-        median = cohort_median([r["_price_m2"] for r in rows])
+        n_direct, n_rescaled, purity = cohort_purity(rows)
+        median = weighted_median(
+            (
+                r["_price_m2"],
+                RESCALE_TRUST if r.get("_rescaled") else 1.0,
+            )
+            for r in rows
+        )
         if median is None or median <= 0:
             continue
 
-        # Dispersion and MAD describe the spread of the listings as
-        # observed, which is a property of the data.
+        # Dispersion and MAD stay unweighted: they describe the spread of
+        # the listings as observed, which is a property of the data, not
+        # of how much we choose to trust each row.
         _, mad, iqr = robust_stats([r["_price_m2"] for r in rows])
         dispersion = (iqr / median) if (iqr is not None and median) else None
-        eff_n = effective_n(rows)
+        eff_n = n_direct + RESCALE_TRUST * n_rescaled
 
-        # Credibility blend toward the prior (ТЗ п.13): the effective
-        # count, so several listings by one identifiable seller cannot
-        # buy the trust of independent observations.
+        # Credibility blend toward the prior (ТЗ п.13): the effective,
+        # purity-discounted count, so neither several listings by one
+        # identifiable seller nor a pile of rescaled proxies can buy the
+        # trust of independent direct observations.
         if prior and eff_n < FULL_CREDIBILITY_N:
             cred = credibility_weight(eff_n)
             adjusted_median = cred * median + (1 - cred) * prior
@@ -3210,6 +3179,9 @@ def analyze_cohorts(
             "level": cohort["level"],
             "rows": rows,
             "size": len(rows),
+            "direct_n": n_direct,
+            "rescaled_n": n_rescaled,
+            "purity": purity,
             "effective_n": eff_n,
             "median": median,
             "adjusted_median": adjusted_median,
@@ -3218,7 +3190,9 @@ def analyze_cohorts(
             "mad": mad,
             "iqr": iqr,
             "prior": prior,
-            "weight": cohort_weight(cohort["level"], eff_n, dispersion),
+            "weight": cohort_weight(
+                cohort["level"], eff_n, dispersion, purity
+            ),
         })
 
     return infos
@@ -3266,6 +3240,7 @@ def cohort_members(cohorts, limit=None):
                 # The area-adjusted value actually compared against, which
                 # is why it can differ from price/square_m2 on screen.
                 "price_m2": r.get("_price_m2"),
+                "rescaled": bool(r.get("_rescaled")),
             })
     items.sort(key=lambda x: (
         order.get(x["level"], 99),
@@ -3280,7 +3255,7 @@ def cohort_members(cohorts, limit=None):
 def score_row(
     target, pool, citywide_median, score_index, q25, q75,
     soft_target=True, room_bounds=None, class_priors=None, area_slopes=None,
-    spatial_index=None, building_index=None, ref_areas=None,
+    spatial_index=None, building_index=None,
 ):
     """
     score_row сохраняется module-level для совместимости с прежним
@@ -3407,8 +3382,6 @@ def score_row(
     cohort_infos = analyze_cohorts(
         cohorts, citywide_median, target["_rooms"],
         class_priors=class_priors, building_class_label=target_class,
-        target_square=to_float(target.get("square_m2")),
-        ref_areas=ref_areas, area_slopes=area_slopes,
     )
     base_price_m2 = blended_base_price(cohort_infos)
 
@@ -3584,8 +3557,15 @@ def verify_weight_hierarchy():
     (size, homogeneity) combination lets a wider cohort outweigh a
     tighter one (ТЗ п.2, п.11, п.17).
 
-    Compares each level's BEST case (huge, perfectly homogeneous) against
-    the next-tighter level's WORST case.
+    Compares each level's BEST case (huge, perfectly homogeneous, fully
+    direct) against the next-tighter level's WORST case. The worst case
+    now includes the purity discount: an L1/2 built entirely out of
+    cross-room comparables rescaled through citywide medians is penalised
+    twice over — once through RESCALE_TRUST as a weight multiplier and
+    once through the effective count it feeds into quantity_factor — and
+    the ladder has to stay intact even there. Without this case in the
+    search, the check would pass while the hierarchy silently broke for
+    exactly the cohorts most at risk of being wrong.
 
     Returns a list of violation strings — empty means the hierarchy holds.
     """
@@ -3593,17 +3573,24 @@ def verify_weight_hierarchy():
     violations = []
     for tighter, wider in zip(order, order[1:]):
         candidates = []
-        for eff_n in (1, 2, 3, 4):
-            # Only ATTAINABLE combinations: at n=1 robust_stats()
-            # cannot measure dispersion at all and returns None, so
-            # pairing n=1 with a huge dispersion would test a state
-            # the code can never reach and force the ladder to be
-            # tuned against a phantom.
-            dispersions = [None] if eff_n < 2 else [0.0, 10.0]
-            for dispersion in dispersions:
-                candidates.append(cohort_weight(tighter, eff_n, dispersion))
+        # purity < 1 is only attainable on L1/2, which is the only level
+        # that can contain rescaled rows.
+        purities = [1.0, RESCALE_TRUST] if tighter == "1-2" else [1.0]
+        for purity in purities:
+            for raw_n in (1, 2, 3, 4):
+                eff_n = raw_n * purity
+                # Only ATTAINABLE combinations: at n=1 robust_stats()
+                # cannot measure dispersion at all and returns None, so
+                # pairing n=1 with a huge dispersion would test a state
+                # the code can never reach and force the ladder to be
+                # tuned against a phantom.
+                dispersions = [None] if raw_n < 2 else [0.0, 10.0]
+                for dispersion in dispersions:
+                    candidates.append(
+                        cohort_weight(tighter, eff_n, dispersion, purity)
+                    )
         worst_tight = min(candidates)
-        best_wide = cohort_weight(wider, 10_000, 0.0)
+        best_wide = cohort_weight(wider, 10_000, 0.0, 1.0)
         if best_wide >= worst_tight:
             violations.append(
                 f"L{wider} (max {best_wide:.5f}) может перевесить "
@@ -3907,16 +3894,15 @@ def run(input_path, output_path, baseline_path=None, soft_target=True):
     # (room count x building class) instead of room count alone.
     class_priors = prior_medians_by_rooms_class(usable_pool, score_index)
     # Price/m² elasticity with respect to floor area, per room count.
-    slope_notes = []
-    area_slopes = area_slopes_by_rooms(usable_pool, notes=slope_notes)
-    ref_areas = median_area_by_rooms(usable_pool)
+    area_slopes = area_slopes_by_rooms(usable_pool)
     spatial_index = SpatialIndex(usable_pool)
     building_index = BuildingIndex(usable_pool)
     if area_slopes:
-        print(
-            "Поправка на площадь (наклон log-log, внутри домов): "
-            + "; ".join(sorted(slope_notes))
+        shown = ", ".join(
+            f"{rooms}к={slope:+.2f}"
+            for rooms, slope in sorted(area_slopes.items(), key=lambda kv: str(kv[0]))
         )
+        print(f"Поправка на площадь (наклон log-log): {shown}")
 
     results = [
         score_row(
@@ -3924,7 +3910,6 @@ def run(input_path, output_path, baseline_path=None, soft_target=True):
             soft_target=soft_target, room_bounds=room_bounds,
             class_priors=class_priors, area_slopes=area_slopes,
             spatial_index=spatial_index, building_index=building_index,
-            ref_areas=ref_areas,
         )
         for r in rows
     ]

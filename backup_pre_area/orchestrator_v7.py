@@ -119,32 +119,13 @@ _load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
 BASE_DIR = os.environ.get("KRISHA_BASE_DIR", os.path.dirname(os.path.abspath(__file__)))
 
-# КОД и ДАННЫЕ разделены намеренно.
-#
-# BASE_DIR — где лежит сам код (pipeline/*.py). На Render это слепок
-# репозитория: он пересоздаётся при каждом деплое, и всё, что туда
-# записано, теряется.
-#
-# DATA_DIR — где лежит всё, что должно пережить рестарт и деплой:
-# реестр отправленных (ever_sent_ids.json), курсор ленты
-# (collector_state.json), журнал (notifications_log_v3.csv), скачанный
-# baseline и cache/. На Render это точка монтирования постоянного диска
-# (KRISHA_DATA_DIR=/var/data). Локально переменная не задана, и DATA_DIR
-# совпадает с BASE_DIR — то есть прежнее поведение и прежние пути к
-# файлам сохраняются один в один.
-#
-# Без этого разделения реестр отправленных обнулялся бы при каждом
-# деплое, и бот заново рассылал бы все объявления, которые уже отправлял.
-DATA_DIR = os.environ.get("KRISHA_DATA_DIR", BASE_DIR)
-
-# Актуальные stage-скрипты живут вместе в pipeline/ (код), эталон — в
-# baseline/, все временные/промежуточные файлы прогона оркестратора — в
-# cache/ (не трогаются вручную, безопасно чистить между прогонами).
+# Актуальные stage-скрипты живут вместе в pipeline/, эталон — в baseline/,
+# все временные/промежуточные файлы прогона оркестратора — в cache/
+# (не трогаются вручную, безопасно чистить между прогонами).
 PIPELINE_DIR = os.path.join(BASE_DIR, "pipeline")
-BASELINE_DIR = os.path.join(DATA_DIR, "baseline")
-CACHE_DIR = os.path.join(DATA_DIR, "cache")
+BASELINE_DIR = os.path.join(BASE_DIR, "baseline")
+CACHE_DIR = os.path.join(BASE_DIR, "cache")
 os.makedirs(CACHE_DIR, exist_ok=True)
-os.makedirs(BASELINE_DIR, exist_ok=True)
 
 BASELINE_CSV = os.path.join(BASELINE_DIR, "krisha_astana_baseline.csv")
 STAGE3_OUTPUT_COLLECTOR_CSV = os.path.join(CACHE_DIR, "stage3_incoming_collector_latest.csv")
@@ -153,31 +134,32 @@ INCOMING_CLEAN_SCRIPT = os.path.join(PIPELINE_DIR, "incoming_clean_v2.py")
 INCOMING_CACHE_COLLECTOR = os.path.join(CACHE_DIR, "incoming_llm_analysis_cache_collector.json")
 
 # Файлы САМОГО оркестратора.
-EVER_SENT_IDS_FILE = os.path.join(DATA_DIR, "ever_sent_ids.json")
+EVER_SENT_IDS_FILE = os.path.join(BASE_DIR, "ever_sent_ids.json")
 # Персистентный курсор ленты событий rieltorcollector (last_event_id).
 # Переживает рестарт процесса — без этого при каждом старте пришлось бы
 # заново заказывать since=0, то есть перечитывать всю историю событий.
-COLLECTOR_STATE_FILE = os.path.join(DATA_DIR, "collector_state.json")
+COLLECTOR_STATE_FILE = os.path.join(BASE_DIR, "collector_state.json")
 # v3-схема несовместима с notifications_log_v2.csv (там есть
 # base_price_m2_corrected и нет review_flags/robust_z), а
 # append_notifications намеренно отказывается дописывать в файл с чужим
 # заголовком. Заводим новый файл; v2 остаётся нетронутым как история.
-NOTIFICATIONS_LOG_CSV = os.path.join(DATA_DIR, "notifications_log_v3.csv")
+NOTIFICATIONS_LOG_CSV = os.path.join(BASE_DIR, "notifications_log_v3.csv")
 
 # ============================== TELEGRAM ==============================
 
-# Токен и chat_id — ТОЛЬКО из окружения, в коде их нет.
-#
-# Раньше здесь лежали зашитые дефолты, чтобы не задавать переменные в
-# PowerShell перед каждым запуском. Для деплоя это не годится: файл
-# уходит в git, а токен даёт полный доступ к боту — писать от его имени
-# кому угодно. Локально те же значения кладутся в .env рядом со
-# скриптом (он в .gitignore), на Render — в Environment сервиса.
-#
-# Если хотя бы одна переменная не задана, Telegram-доставка тихо
-# выключается: логи и реестр продолжают работать, ничего не падает.
-TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+# Дефолты прямо в файле — чтобы не задавать переменные окружения в
+# PowerShell перед каждым запуском. Впишите сюда свои значения.
+# ⚠️ Файл с реальным токеном не стоит заливать в публичный git/делиться им —
+# токен даёт полный доступ к боту (можно писать от его имени кому угодно).
+# Значения вычищены: это архивная копия для сравнения версий, она не
+# запускается. Актуальный orchestrator_v7.py берёт их только из окружения.
+DEFAULT_TELEGRAM_BOT_TOKEN = ""
+DEFAULT_TELEGRAM_CHAT_ID = ""
+
+# Переменные окружения, если заданы, всё ещё имеют приоритет — это
+# позволяет при желании переопределить дефолт без правки файла.
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", DEFAULT_TELEGRAM_BOT_TOKEN).strip()
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", DEFAULT_TELEGRAM_CHAT_ID).strip()
 TELEGRAM_ENABLED = bool(TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID)
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
 
@@ -237,7 +219,7 @@ BASELINE_RETRY_INTERVAL_SEC = int(os.environ.get("BASELINE_RETRY_INTERVAL_SEC", 
 BASELINE_TIMEOUT_SEC = 120
 # X-Built-At последнего успешно применённого файла — чтобы не заменять
 # данные тем же самым файлом.
-BASELINE_STATE_FILE = os.path.join(DATA_DIR, "baseline_state.json")
+BASELINE_STATE_FILE = os.path.join(BASE_DIR, "baseline_state.json")
 # Без этих колонок Stage 3 не может строить когорты. Результатов Stage 2
 # (red_flags и т.п.) в baseline rieltor-cleaner нет — это 40 колонок
 # карточки, и Stage 3 этого не требует: они нужны только входящим строкам.
@@ -312,8 +294,7 @@ def validate_configuration():
             raise FileNotFoundError(f"{label}: файл не найден: {path}")
 
     print("=== Конфигурация ===")
-    print(f"BASE_DIR       = {BASE_DIR} (код)")
-    print(f"DATA_DIR       = {DATA_DIR} (состояние{', ПЕРСИСТЕНТНЫЙ' if DATA_DIR != BASE_DIR else ''})")
+    print(f"BASE_DIR       = {BASE_DIR}")
     print(f"BASELINE       = {BASELINE_CSV}")
     print(f"INCOMING       = {INCOMING_CLEAN_SCRIPT}")
     print(f"STAGE3         = {STAGE3_MODULE}")
@@ -578,17 +559,12 @@ def format_cohort_message(row):
     if not members:
         return None
 
-    # Считаем из текущих price/square, а не из row["price_m2"]: это
-    # поле — сырой проход из скрапа и может отставать от цены на момент
-    # отправки (уведомление уходит повторно при СТРОГОМ понижении цены,
-    # см. dedupe_against_registry — но price_m2 из старого скана на тот
-    # момент ещё не пересчитан). При падении цены с 300000 на 200000 при
-    # 40 м² это показывало 7500 ₸/м² вместо верных 5000.
-    price = to_float(row.get("price"))
-    square = to_float(row.get("square_m2"))
-    target_pm2 = (price / square) if price and square else None
+    target_pm2 = to_float(row.get("price_m2")) or None
     if target_pm2 is None:
-        target_pm2 = to_float(row.get("price_m2")) or None
+        price = to_float(row.get("price"))
+        square = to_float(row.get("square_m2"))
+        if price and square:
+            target_pm2 = price / square
 
     # Ровный срез по ВСЕМУ диапазону, а не первые N.
     #
@@ -616,9 +592,11 @@ def format_cohort_message(row):
     if dom:
         dom_members = [m for m in members if m["level"] == dom]
         label = _COHORT_LEVEL_LABEL.get(dom, dom)
+        resc = sum(1 for m in dom_members if m.get("rescaled"))
+        extra = f", из них {resc} пересчитано с другой комнатности" if resc else ""
         header.append(
             f"Решает уровень L{dom} ({escape_html(label)}): "
-            f"<b>{len(dom_members)} объявл.</b>"
+            f"<b>{len(dom_members)} объявл.</b>{extra}"
         )
     if target_pm2:
         header.append(f"Цена объекта: <b>{int(target_pm2):,} ₸/м²</b>".replace(",", " "))
@@ -648,7 +626,11 @@ def format_cohort_message(row):
         price_txt = f"{int(price):,}".replace(",", " ") if price else "—"
         sq = m.get("square_m2") or "—"
         rooms = m.get("rooms") or "—"
-        title = f"{rooms}к {sq}м² — {price_txt} ₸ ({pm2_txt} ₸/м²)"
+        # Rescaled comparables come from a different room count, projected
+        # via the citywide room ratio — weaker evidence, and the reader
+        # should be able to see which ones they are.
+        mark = " ~" if m.get("rescaled") else ""
+        title = f"{rooms}к {sq}м² — {price_txt} ₸ ({pm2_txt} ₸/м²){mark}"
         url = m.get("url")
         if url:
             lines.append(f'• <a href="{escape_html(str(url))}">{escape_html(title)}</a>')
@@ -657,6 +639,9 @@ def format_cohort_message(row):
 
     if omitted:
         lines.append(f"\n…и ещё {omitted} — показан ровный срез по всему диапазону цен")
+    if any(m.get("rescaled") for m in shown):
+        lines.append("~ — пересчёт с другой комнатности, вес ниже")
+
     return "\n".join(x for x in lines if x != "" or True)
 
 
@@ -692,8 +677,13 @@ def explain_confidence(row):
     # низкий независимо от всего остального.
     prefix = {"1-2": "l12", "3": "l3", "4": "l4", "5": "l5", "6": "l6"}.get(level)
     dom_n = to_float(row.get(f"{prefix}_n")) if prefix else None
+    resc = to_float(row.get(f"{prefix}_rescaled_n")) if prefix else None
     if dom_n is not None and dom_n <= 2:
         reasons.append(f"ведущий уровень L{level} стоит всего на {int(dom_n)} объявл.")
+    if dom_n and resc and resc >= dom_n:
+        reasons.append("ВСЕ они пересчитаны с другой комнатности — прямых сравнимых нет")
+    elif resc:
+        reasons.append(f"из них пересчитанных с другой комнатности: {int(resc)}")
 
     # 2. Уровень. LEVEL_CONFIDENCE: L1/2=1.00, L3=0.90, L4=0.78,
     # L5=0.62, L6=0.42 — чем шире география, тем слабее свидетельство.
@@ -719,7 +709,7 @@ def explain_confidence(row):
 def format_telegram_message(notif_row, full_row=None):
     """notif_row — уже компактная строка вида to_notification_row(...).
 
-    full_row нужен для разбора уверенности: он читает l*_n,
+    full_row нужен для разбора уверенности: он читает l*_n, l*_rescaled_n,
     cohort_dispersion и cohort_disagreement, которых в схеме журнала нет.
     """
     price = notif_row.get("price") or "—"
@@ -754,11 +744,15 @@ def format_telegram_message(notif_row, full_row=None):
         f"💰 {escape_html(price_line)}",
         f"{deviation_icon} Отклонение: {escape_html(deviation_text)}",
         f"🏆 Вердикт: {escape_html(verdict_label)}",
-        f"👤 Продавец: {escape_html(notif_row.get('seller_class') or '—')}",
+        f"ℹ️ {escape_html(notif_row.get('verdict_reason') or '')}",
+        f"👤 Продавец: {escape_html(notif_row.get('seller_class') or '—')}"
+        f" (уверенность {escape_html(notif_row.get('seller_confidence') or '—')})",
         f"📊 Когорта: уровень {escape_html(notif_row.get('cohort_level') or '—')}"
         f", n={escape_html(notif_row.get('cohort_size') or '—')}"
         f", уверенность бенчмарка {escape_html(notif_row.get('benchmark_confidence') or '—')}",
     ]
+    if notif_row.get("data_warnings"):
+        lines.append(f"⚠️ {escape_html(notif_row['data_warnings'])}")
 
     # Разбор уверенности — главное, чего не хватало: карточка сообщала
     # «уверенность 0.275» и не говорила, что за этим стоит.
@@ -906,45 +900,15 @@ def passes_basic_sanity(row):
     return bool(rid) and price is not None and price > 0
 
 
-# Контекст скоринга (индексы, приоры, наклоны по площади) зависит только от
-# файла baseline, а он меняется раз в 12 часов. Считать его заново на каждый
-# пакет незачем, тем более что оценка наклона по площади теперь включает
-# бутстрап. Кэшируем контекст рабочего baseline по (путь, mtime, размер):
-# после замены файла ключ меняется, и контекст пересчитывается сам.
-# Проверочные загрузки (validate_downloaded_baseline) идут по другому пути и
-# в кэш не попадают.
-_STAGE3_CTX_CACHE = {"key": None, "ctx": None}
-
-
-def _baseline_cache_key(path):
-    st = os.stat(path)
-    return (os.path.abspath(path), st.st_mtime_ns, st.st_size)
-
-
 def load_stage3(baseline_path=None):
-    use_cache = baseline_path is None or (
-        os.path.abspath(baseline_path) == os.path.abspath(BASELINE_CSV)
-    )
+    import importlib.util
+
     baseline_path = baseline_path or BASELINE_CSV
     if not os.path.exists(baseline_path):
         raise FileNotFoundError(
             f"Не найден baseline: {baseline_path}. "
             "Он скачивается с rieltor-cleaner (см. refresh_baseline)."
         )
-
-    if use_cache:
-        key = _baseline_cache_key(baseline_path)
-        if _STAGE3_CTX_CACHE["key"] == key:
-            return _STAGE3_CTX_CACHE["ctx"]
-    ctx = _build_stage3_context(baseline_path)
-    if use_cache:
-        _STAGE3_CTX_CACHE["key"] = key
-        _STAGE3_CTX_CACHE["ctx"] = ctx
-    return ctx
-
-
-def _build_stage3_context(baseline_path):
-    import importlib.util
 
     spec = importlib.util.spec_from_file_location("stage3_benchmark_v3", STAGE3_MODULE)
     module = importlib.util.module_from_spec(spec)
@@ -977,12 +941,9 @@ def _build_stage3_context(baseline_path):
     room_bounds = module.room_segment_boundaries(usable)
     score_index = module.building_scores_index(usable, q25, q75, room_bounds)
     class_priors = module.prior_medians_by_rooms_class(usable, score_index)
-    slope_notes = []
-    area_slopes = module.area_slopes_by_rooms(usable, notes=slope_notes)
-    ref_areas = module.median_area_by_rooms(usable)
+    area_slopes = module.area_slopes_by_rooms(usable)
     spatial_index = module.SpatialIndex(usable)
     building_index = module.BuildingIndex(usable)
-    print("📐 [stage3] наклон по площади (внутри домов): " + "; ".join(sorted(slope_notes)))
 
     return {
         "module": module,
@@ -994,7 +955,6 @@ def _build_stage3_context(baseline_path):
         "score_index": score_index,
         "class_priors": class_priors,
         "area_slopes": area_slopes,
-        "ref_areas": ref_areas,
         "spatial_index": spatial_index,
         "building_index": building_index,
     }
@@ -1022,7 +982,6 @@ def score_incoming(rows):
             area_slopes=ctx["area_slopes"],
             spatial_index=ctx["spatial_index"],
             building_index=ctx["building_index"],
-            ref_areas=ctx["ref_areas"],
         )
         merged = dict(row)
         merged.update(result)
