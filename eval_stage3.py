@@ -8,7 +8,7 @@
 за м². Ошибка |diff_pct|; меньше — лучше.
 
 Запуск:
-    python tools/eval_stage3.py [--old путь] [--new путь] [--targets 2500] [--seeds 2]
+    python eval_stage3.py [--old путь] [--new путь] [--targets 2500] [--seeds 2]
 
 Сценарии:
     чистый           пул как есть
@@ -34,7 +34,7 @@ import random
 import statistics
 import time
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.abspath(__file__))
 BASE = os.path.join(ROOT, "baseline", "krisha_astana_baseline.csv")
 
 
@@ -188,8 +188,8 @@ def report(title, results, buckets, targets_dict=None):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--old", default=os.path.join(ROOT, "backup_pre_area", "stage3_benchmark_v3.py"))
-    ap.add_argument("--new", default=os.path.join(ROOT, "pipeline", "stage3_benchmark_v3.py"))
+    ap.add_argument("--old", default=os.path.join(ROOT, "stage3_benchmark_v3_old.py"))
+    ap.add_argument("--new", default=os.path.join(ROOT, "stage3_benchmark_v3.py"))
     ap.add_argument("--targets", type=int, default=2500)
     ap.add_argument("--seeds", type=int, default=2)
     ap.add_argument("--attribution", action="store_true",

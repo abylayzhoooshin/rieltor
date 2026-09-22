@@ -137,10 +137,11 @@ BASE_DIR = os.environ.get("KRISHA_BASE_DIR", os.path.dirname(os.path.abspath(__f
 # деплое, и бот заново рассылал бы все объявления, которые уже отправлял.
 DATA_DIR = os.environ.get("KRISHA_DATA_DIR", BASE_DIR)
 
-# Актуальные stage-скрипты живут вместе в pipeline/ (код), эталон — в
-# baseline/, все временные/промежуточные файлы прогона оркестратора — в
-# cache/ (не трогаются вручную, безопасно чистить между прогонами).
-PIPELINE_DIR = os.path.join(BASE_DIR, "pipeline")
+# Плоская раскладка: все stage-скрипты лежат рядом с оркестратором, в
+# корне репозитория. Подкаталоги остались только у ДАННЫХ — эталон в
+# baseline/, временные файлы прогона в cache/ (оба создаются сами и в
+# git не попадают, поэтому загрузку файлов списком не усложняют).
+PIPELINE_DIR = BASE_DIR
 BASELINE_DIR = os.path.join(DATA_DIR, "baseline")
 CACHE_DIR = os.path.join(DATA_DIR, "cache")
 os.makedirs(CACHE_DIR, exist_ok=True)

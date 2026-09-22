@@ -29,14 +29,14 @@ pip install -r requirements.txt
 python orchestrator_v7.py
 
 # Measure scoring quality, old Stage 3 vs new, on a hold-out sample:
-python tools/eval_stage3.py --targets 2500 --seeds 1
-python tools/eval_stage3.py --targets 2500 --seeds 1 --attribution   # break the effect down per fix
+python eval_stage3.py --targets 2500 --seeds 1
+python eval_stage3.py --targets 2500 --seeds 1 --attribution   # break the effect down per fix
 
 # Run the incoming cleaner standalone, for debugging one stage:
-python pipeline/incoming_clean_v2.py --input <raw.csv> --output <clean.csv> --cache <cache.json> --concurrency 4
+python incoming_clean_v2.py --input <raw.csv> --output <clean.csv> --cache <cache.json> --concurrency 4
 ```
 
-`tools/eval_stage3.py` compares `pipeline/stage3_benchmark_v3.py` (new) against `backup_pre_area/stage3_benchmark_v3.py` (old) — that directory exists for exactly this and is not dead code.
+`eval_stage3.py` compares `stage3_benchmark_v3.py` (new) against `stage3_benchmark_v3_old.py` (the previous version, kept for exactly this) — the latter is not dead code.
 
 The only third-party dependency in the whole project is `openai`. Everything else is stdlib.
 
@@ -49,8 +49,8 @@ The only third-party dependency in the whole project is `openai`. Everything els
 ```
 GET /listings/changes?since=<event_id>&limit=<n>   # cursor feed, reasons new/price_drop
 GET /listings/{id}                                  # full card per event
-  → clean_incoming_rows()      subprocess: pipeline/incoming_clean_v2.py (SOFT cleaning)
-  → score_incoming()           in-process: pipeline/stage3_benchmark_v3.py vs the baseline
+  → clean_incoming_rows()      subprocess: incoming_clean_v2.py (SOFT cleaning)
+  → score_incoming()           in-process: stage3_benchmark_v3.py vs the baseline
   → candidate_is_sendable()    verdict filter
   → dedupe_against_registry()  ever_sent_ids.json
   → append_notifications() + save_registry()   durable write BEFORE Telegram (outbox-first)
@@ -61,7 +61,7 @@ The feed cursor is persisted in `collector_state.json`. On any failure (network,
 
 ### Code vs data: `BASE_DIR` and `DATA_DIR`
 
-`BASE_DIR` is where the code lives (`pipeline/*.py`). `DATA_DIR` (env `KRISHA_DATA_DIR`, defaults to `BASE_DIR`) is where everything mutable lives: `ever_sent_ids.json`, `collector_state.json`, `notifications_log_v3.csv`, `baseline/`, `cache/`.
+`BASE_DIR` is where the code lives (all `*.py` sit flat in the repo root). `DATA_DIR` (env `KRISHA_DATA_DIR`, defaults to `BASE_DIR`) is where everything mutable lives: `ever_sent_ids.json`, `collector_state.json`, `notifications_log_v3.csv`, `baseline/`, `cache/`.
 
 On Render `DATA_DIR=/var/data` is a mounted persistent disk while the code directory is recreated on every deploy. **Any new state file must go under `DATA_DIR`**, or it will be silently wiped on the next deploy — and for the dedup registry specifically that means re-sending everything already sent.
 
@@ -71,7 +71,7 @@ On Render `DATA_DIR=/var/data` is a mounted persistent disk while the code direc
 
 Until the file exists, `collector_job()` skips ticks with a log line rather than failing — that is the normal state for the first minute or two after a fresh deploy.
 
-### Scoring (`pipeline/stage3_benchmark_v3.py`)
+### Scoring (`stage3_benchmark_v3.py`)
 
 Builds a cohort per listing from the baseline pool at decreasing precision: same complex (L1/2) → same street+house (L2b) → same street+price-segment (L3) → radius 1km/3km (L4/L5) → citywide (L6). Produces a verdict plus separate `value_score` (price attractiveness) and `quality_evidence_score` (how much is actually known about the unit) — a low price alone is never read as "good" without evidence.
 
@@ -79,7 +79,7 @@ Builds a cohort per listing from the baseline pool at decreasing precision: same
 
 ### Two cleaning paths that must not be conflated
 
-- `pipeline/incoming_clean_v2.py` — **soft** cleaning for live candidates: never drops a row for market reasons (price, cohort, seller, red flags, missing photo). Bad data becomes an `incoming_data_warnings` column instead, because Stage 3 is designed to score thin listings with reduced confidence rather than silently excluding them. It imports `stage2_llm_analyze.analyze_all` as a library call, not as a subprocess. If every row comes back `llm_skipped_error` it exits with code 2 (`Stage2Unavailable`) rather than producing a biased score, and the orchestrator then aborts the cycle instead of sending anything.
+- `incoming_clean_v2.py` — **soft** cleaning for live candidates: never drops a row for market reasons (price, cohort, seller, red flags, missing photo). Bad data becomes an `incoming_data_warnings` column instead, because Stage 3 is designed to score thin listings with reduced confidence rather than silently excluding them. It imports `stage2_llm_analyze.analyze_all` as a library call, not as a subprocess. If every row comes back `llm_skipped_error` it exits with code 2 (`Stage2Unavailable`) rather than producing a biased score, and the orchestrator then aborts the cycle instead of sending anything.
 - Hard cleaning (dropping rows outright) belongs to `rieltor-cleaner`, not here.
 
 ### State files (under `DATA_DIR`)
@@ -97,6 +97,6 @@ All secrets come from the environment, loaded from `.env` locally (see `.env.exa
 
 A live Telegram bot token was previously hardcoded in `orchestrator_v7.py` and remains in git history. If the repo is public, treat it as leaked and rotate it via @BotFather.
 
-## `for_ms3/`
+## `for_ms3_*`
 
-Reference material for the external collector microservice (`CLAUDE.md`, `README.md`, an example `baseline_api.py`, example JSON payloads). It documents the `/listings/changes` and `/listings/{id}` endpoints this repo consumes. Treat it as an integration spec to read, not code to run or extend in place.
+Reference material for the external collector microservice (`for_ms3_CLAUDE.md`, `for_ms3_README.md`, an example `for_ms3_baseline_api.py`, example JSON payloads). It documents the `/listings/changes` and `/listings/{id}` endpoints this repo consumes. Treat it as an integration spec to read, not code to run or extend in place.

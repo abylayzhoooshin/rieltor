@@ -21,9 +21,9 @@ rieltor-cleaner  ──(готовый baseline, раз в 12ч)───┘    
 ```
 GET /listings/changes  — курсорная лента событий (new / price_drop)
 GET /listings/{id}     — полная карточка по каждому событию
-  → pipeline/incoming_clean_v2.py   мягкая очистка (ничего не выбрасывает)
-  → pipeline/stage2_llm_analyze.py  разбор описания через OpenAI
-  → pipeline/stage3_benchmark_v3.py оценка против baseline, вердикт
+  → incoming_clean_v2.py   мягкая очистка (ничего не выбрасывает)
+  → stage2_llm_analyze.py  разбор описания через OpenAI
+  → stage3_benchmark_v3.py оценка против baseline, вердикт
   → дедуп по ever_sent_ids.json     шлём, только если цена строго упала
   → запись в журнал, потом Telegram (outbox-first)
 ```
@@ -43,15 +43,19 @@ Telegram. Неудачная отправка не приведёт к повт�
 
 ## Структура
 
-| Путь | Что это |
+Все файлы лежат плоско в корне — подкаталогов в репозитории нет.
+Подпапки `baseline/` и `cache/` создаются сами при запуске, это данные,
+в git их нет.
+
+| Файл | Что это |
 |---|---|
 | `orchestrator_v7.py` | точка входа: опрос ленты, дедуп, доставка |
-| `pipeline/stage3_benchmark_v3.py` | вся логика оценки и вердиктов |
-| `pipeline/stage2_llm_analyze.py` | разбор описаний через OpenAI |
-| `pipeline/incoming_clean_v2.py` | мягкая очистка входящих строк |
-| `tools/eval_stage3.py` | замер качества оценки: старая версия против новой |
-| `backup_pre_area/` | прошлая версия Stage 3 — эталон для сравнения в `tools/eval_stage3.py` |
-| `for_ms3/` | спецификация API соседнего сервиса-сборщика |
+| `stage3_benchmark_v3.py` | вся логика оценки и вердиктов |
+| `stage2_llm_analyze.py` | разбор описаний через OpenAI |
+| `incoming_clean_v2.py` | мягкая очистка входящих строк |
+| `eval_stage3.py` | замер качества оценки: старая версия против новой |
+| `stage3_benchmark_v3_old.py` | прошлая версия Stage 3 — эталон для сравнения в `eval_stage3.py` |
+| `for_ms3_*` | спецификация API соседнего сервиса-сборщика |
 
 ## Локальный запуск
 
@@ -68,7 +72,7 @@ python orchestrator_v7.py
 Замер качества оценки на hold-out выборке:
 
 ```bash
-python tools/eval_stage3.py --targets 2500 --seeds 1
+python eval_stage3.py --targets 2500 --seeds 1
 ```
 
 ## Деплой на Render
