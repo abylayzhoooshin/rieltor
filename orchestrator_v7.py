@@ -178,8 +178,14 @@ NOTIFICATIONS_LOG_CSV = os.path.join(DATA_DIR, "notifications_log_v3.csv")
 # Если хотя бы одна переменная не задана, Telegram-доставка тихо
 # выключается: логи и реестр продолжают работать, ничего не падает.
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
-TELEGRAM_ENABLED = bool(TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID)
+# Несколько получателей — через запятую в ОДНОЙ переменной
+# (TELEGRAM_CHAT_ID=489767497,123456789), а не отдельными переменными на
+# каждого: список получателей меняется чаще, чем сам код, и не должен
+# требовать правки render.yaml при каждом добавлении человека.
+TELEGRAM_CHAT_IDS = [
+    c.strip() for c in os.environ.get("TELEGRAM_CHAT_ID", "").split(",") if c.strip()
+]
+TELEGRAM_ENABLED = bool(TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_IDS)
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
 
 TELEGRAM_SEND_DELAY_SEC = 1.2   # запас от flood control (Telegram лимитирует ~1 сообщение/сек в чат)
@@ -339,7 +345,7 @@ def validate_configuration():
         print("BASELINE_SRC   = выключено (нет RIELTOR_CLEANER_API_KEY), используется локальный файл")
     if TELEGRAM_ENABLED:
         masked = TELEGRAM_BOT_TOKEN[:6] + "..." if len(TELEGRAM_BOT_TOKEN) > 6 else "..."
-        print(f"TELEGRAM       = включён (bot={masked}, chat_id={TELEGRAM_CHAT_ID})")
+        print(f"TELEGRAM       = включён (bot={masked}, получателей: {len(TELEGRAM_CHAT_IDS)} — {TELEGRAM_CHAT_IDS})")
     else:
         print(
             "TELEGRAM       = выключен (задайте TELEGRAM_BOT_TOKEN и "
@@ -791,12 +797,9 @@ def _telegram_post(payload):
         return exc.code, exc.read().decode(errors="replace")
 
 
-async def send_telegram_message(text):
-    if not TELEGRAM_ENABLED:
-        return False
-
+async def _send_to_one_chat(chat_id, text):
     payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
+        "chat_id": chat_id,
         "text": text,
         "parse_mode": "HTML",
         "disable_web_page_preview": "false",
@@ -808,12 +811,32 @@ async def send_telegram_message(text):
             status, body = await loop.run_in_executor(None, _telegram_post, payload)
             if status == 200:
                 return True
-            print(f"   ⚠️ Telegram API вернул {status} (попытка {attempt}/{TELEGRAM_MAX_RETRIES}): {body[:200]}")
+            print(f"   ⚠️ Telegram API вернул {status} для chat_id={chat_id} "
+                  f"(попытка {attempt}/{TELEGRAM_MAX_RETRIES}): {body[:200]}")
         except Exception as exc:
-            print(f"   ⚠️ Telegram send сбой (попытка {attempt}/{TELEGRAM_MAX_RETRIES}): {type(exc).__name__}: {exc}")
+            print(f"   ⚠️ Telegram send сбой для chat_id={chat_id} "
+                  f"(попытка {attempt}/{TELEGRAM_MAX_RETRIES}): {type(exc).__name__}: {exc}")
         if attempt < TELEGRAM_MAX_RETRIES:
             await asyncio.sleep(2 * attempt)
     return False
+
+
+async def send_telegram_message(text):
+    """Рассылает ОДНО и то же сообщение всем получателям из
+    TELEGRAM_CHAT_IDS независимо друг от друга: сбой у одного (например,
+    он заблокировал бота) не должен мешать доставке остальным.
+
+    Возвращает True, если доставлено хотя бы одному — тем же смыслом
+    пользовался единственный получатель раньше, и от него зависит,
+    уйдёт ли следом второе сообщение с базой сравнения (см. notify_telegram).
+    """
+    if not TELEGRAM_ENABLED:
+        return False
+
+    results = await asyncio.gather(*(
+        _send_to_one_chat(chat_id, text) for chat_id in TELEGRAM_CHAT_IDS
+    ))
+    return any(results)
 
 
 async def notify_telegram(rows):
