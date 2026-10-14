@@ -233,6 +233,9 @@ import sys
 from collections import defaultdict
 from datetime import datetime, timezone
 
+from interior_price_adjustment import adjust_price_for_interior
+from interior_premium_transfer import build_premium_signals, strict_premium_evidence
+
 
 # ============================== CONFIG ==============================
 
@@ -584,13 +587,21 @@ RADIUS_COORD_BUILDING_KM = 0.075
 RADIUS_BASE_HOUSE_KM = 0.1
 _HOUSE_BASE_NUM = re.compile(r"^(\d+)")
 
-# Listings whose coordinates fall outside this box are not in Astana at
-# all (11 such rows in the current baseline, including one at latitude
-# 44.8 near Kyzylorda and one at longitude 78.1). Harmless while
-# coordinates only fed the wide L4/L5 radii, but L3 and the building
-# fallback now both key on geometry, so they are dropped up front.
-ASTANA_LAT_RANGE = (50.5, 52.0)
-ASTANA_LON_RANGE = (70.5, 72.5)
+# Listings whose coordinates fall outside this box are not in Almaty at
+# all. Harmless while coordinates only fed the wide L4/L5 radii, but L3
+# and the building fallback now both key on geometry, so they are dropped
+# up front.
+#
+# Границы под Алматы, а не под Астану (50.5-52.0 / 70.5-72.5): на
+# алматинском baseline реальный разброс 43.09-43.42 по широте и
+# 76.65-77.29 по долготе, то есть астанинская рамка отсекала бы 100%
+# строк (проверено: 0 из 7084), обнуляя координаты всему городу и роняя
+# уровни L3/L4/L5 до общегородского L6. Запас от измеренного разброса
+# оставлен тот же по духу, что был у Астаны, и при этом рамка по-прежнему
+# отбрасывает чужие города: Астана (51.1/71.4), Шымкент (42.3/69.6),
+# Тараз (42.9/71.4), Караганда (49.8/73.1) — все вне её.
+ALMATY_LAT_RANGE = (42.8, 43.7)
+ALMATY_LON_RANGE = (76.2, 77.6)
 PRICE_RANGE_L5_PCT = 0.30
 
 # There is no extreme-floor price correction. The ground/top-floor
@@ -660,6 +671,14 @@ PRICE_RANGE_L5_PCT = 0.30
 FIND_THRESHOLD_HIGH_CONF = 0.17
 FIND_THRESHOLD_MED_CONF = 0.21
 FIND_THRESHOLD_LOW_CONF = 0.27
+
+# Строгая ремонтная ветка отвечает на другую задачу: не максимизировать
+# среднюю точность прогноза, а не пропустить потенциальную находку, когда
+# обычный benchmark систематически описывает квартиру со слабым ремонтом.
+# Низкий порог разрешён только при полном structural evidence из
+# interior_premium_transfer.py; обычные объявления продолжают жить на
+# порогах 17/21/27% выше.
+STRICT_REPAIR_FIND_THRESHOLD = 0.05
 
 OVERPRICE_THRESHOLD_HIGH_CONF = -0.14
 OVERPRICE_THRESHOLD_MED_CONF = -0.18
@@ -867,7 +886,29 @@ OUTPUT_EXTRA_FIELDNAMES = [
     "confidence_weight",
     "benchmark_confidence",
     "is_extreme_floor",
+    "base_price_m2_unadjusted",
     "base_price_m2",
+    "interior_target_score",
+    "interior_reference_score",
+    "interior_reference_n",
+    "interior_reference_coverage",
+    "interior_adjustment_confidence",
+    "interior_adjustment_beta",
+    "interior_score_delta",
+    "interior_price_adjustment_pct",
+    "interior_adjustment_applied",
+    "interior_adjustment_reason",
+    "interior_adjustment_method",
+    "interior_legacy_price_m2",
+    "interior_individual_price_m2",
+    "interior_individual_n",
+    "interior_external_premium_pct",
+    "interior_external_premium_donors",
+    "interior_external_weak_n",
+    "interior_external_confidence",
+    "interior_external_price_m2",
+    "interior_external_transition",
+    "repair_find_override",
     "diff_pct",
     "robust_z",
     "value_score",
@@ -1189,14 +1230,14 @@ def enrich(row):
         row.get("house_num"), strip_trailing_number=False
     )
 
-    # Coordinates outside Astana are data errors, not distant listings.
+    # Coordinates outside Almaty are data errors, not distant listings.
     # Both the L3 radius and the coordinate-based building fallback key
     # on geometry now, so a stray point is neutralised at the source
     # rather than silently failing every distance test downstream.
     row["_geo_ok"] = bool(
         row["_lat"] is not None and row["_lon"] is not None
-        and ASTANA_LAT_RANGE[0] < row["_lat"] < ASTANA_LAT_RANGE[1]
-        and ASTANA_LON_RANGE[0] < row["_lon"] < ASTANA_LON_RANGE[1]
+        and ALMATY_LAT_RANGE[0] < row["_lat"] < ALMATY_LAT_RANGE[1]
+        and ALMATY_LON_RANGE[0] < row["_lon"] < ALMATY_LON_RANGE[1]
     )
     if not row["_geo_ok"]:
         row["_lat"] = None
@@ -3281,6 +3322,7 @@ def score_row(
     target, pool, citywide_median, score_index, q25, q75,
     soft_target=True, room_bounds=None, class_priors=None, area_slopes=None,
     spatial_index=None, building_index=None, ref_areas=None,
+    repair_premium_signals=None,
 ):
     """
     score_row сохраняется module-level для совместимости с прежним
@@ -3410,9 +3452,9 @@ def score_row(
         target_square=to_float(target.get("square_m2")),
         ref_areas=ref_areas, area_slopes=area_slopes,
     )
-    base_price_m2 = blended_base_price(cohort_infos)
+    base_price_m2_unadjusted = blended_base_price(cohort_infos)
 
-    if base_price_m2 is None:
+    if base_price_m2_unadjusted is None:
         result = {
             "status": "no_comparables",
             "verdict": "НЕДОСТАТОЧНО ДАННЫХ",
@@ -3436,13 +3478,28 @@ def score_row(
         result.update(_empty_cohort_fields())
         return result
 
+    # Ремонт корректирует ожидаемую цену, а не verdict напрямую. Поэтому
+    # после этой точки прежняя логика diff/threshold/value_score остаётся
+    # единственным местом, которое решает, является ли квартира находкой.
+    external_premium = None
+    if repair_premium_signals is not None:
+        external_premium = strict_premium_evidence(
+            target, cohort_pool, repair_premium_signals,
+            _class_score_from_price, room_bounds, q25, q75,
+        )
+    interior_adjustment = adjust_price_for_interior(
+        base_price_m2_unadjusted, target, cohort_infos,
+        external_premium_evidence=external_premium,
+    )
+    base_price_m2 = interior_adjustment["base_price_m2_adjusted"]
+
     # STEP 4: diagnostics. Within-cohort spread has already shaped the
     # weights, so what the verdict is read against here is the part that
     # nothing has priced in yet — how much the cohorts disagree with each
     # other — plus a robust scale measured from the same centre as
     # diff_pct rather than from the raw union's median.
     d_within, d_between, d_total = dispersion_components(
-        cohort_infos, base_price_m2
+        cohort_infos, base_price_m2_unadjusted
     )
 
     # robust_z is only meaningful when there is a spread to measure it
@@ -3454,7 +3511,7 @@ def score_row(
     # (17 rows hit the +-10 clamp on the baseline). Below
     # MIN_ROWS_FOR_ROBUST_Z effective observations it is left undefined.
     total_effective = sum(c["effective_n"] for c in cohort_infos)
-    robust_scale = weighted_robust_scale(cohort_infos, base_price_m2)
+    robust_scale = weighted_robust_scale(cohort_infos, base_price_m2_unadjusted)
     if robust_scale and total_effective >= MIN_ROWS_FOR_ROBUST_Z:
         robust_z = (target["_price_m2"] - base_price_m2) / robust_scale
         robust_z = max(-10.0, min(10.0, robust_z))
@@ -3485,6 +3542,19 @@ def score_row(
     verdict, verdict_reason = verdict_from_diff(
         diff_pct, benchmark_conf, target, warnings, robust_z=robust_z
     )
+    repair_find_override = False
+    if (
+        interior_adjustment["interior_adjustment_method"] == "strict_external_premium"
+        and diff_pct is not None
+        and diff_pct >= STRICT_REPAIR_FIND_THRESHOLD
+        and verdict == "СПРАВЕДЛИВАЯ"
+    ):
+        verdict = "НАХОДКА"
+        verdict_reason = (
+            f"цена ниже строгой оценки с учётом ремонта на {diff_pct:.1%}; "
+            f"премия подтверждена {interior_adjustment['interior_external_premium_donors']} зданиями"
+        )
+        repair_find_override = True
 
     value_score = value_from_diff(diff_pct)
 
@@ -3558,7 +3628,52 @@ def score_row(
         "benchmark_confidence": benchmark_conf,
         # Reported for diagnostics only — it no longer adjusts the price.
         "is_extreme_floor": target["_is_extreme_floor"],
+        "base_price_m2_unadjusted": round(base_price_m2_unadjusted, 1),
         "base_price_m2": round(base_price_m2, 1),
+        "interior_target_score": interior_adjustment["interior_target_score"],
+        "interior_reference_score": interior_adjustment["interior_reference_score"],
+        "interior_reference_n": interior_adjustment["interior_reference_n"],
+        "interior_reference_coverage": round(
+            interior_adjustment["interior_reference_coverage"], 3
+        ),
+        "interior_adjustment_confidence": round(
+            interior_adjustment["interior_adjustment_confidence"], 3
+        ),
+        "interior_adjustment_beta": interior_adjustment["interior_adjustment_beta"],
+        "interior_score_delta": (
+            round(interior_adjustment["interior_score_delta"], 3)
+            if interior_adjustment["interior_score_delta"] is not None else None
+        ),
+        "interior_price_adjustment_pct": round(
+            interior_adjustment["interior_price_adjustment_pct"], 2
+        ),
+        "interior_adjustment_applied": interior_adjustment["interior_adjustment_applied"],
+        "interior_adjustment_reason": interior_adjustment["interior_adjustment_reason"],
+        "interior_adjustment_method": interior_adjustment["interior_adjustment_method"],
+        "interior_legacy_price_m2": (
+            round(interior_adjustment["interior_legacy_price_m2"], 1)
+            if interior_adjustment["interior_legacy_price_m2"] is not None else None
+        ),
+        "interior_individual_price_m2": (
+            round(interior_adjustment["interior_individual_price_m2"], 1)
+            if interior_adjustment["interior_individual_price_m2"] is not None else None
+        ),
+        "interior_individual_n": interior_adjustment["interior_individual_n"],
+        "interior_external_premium_pct": (
+            round(interior_adjustment["interior_external_premium_pct"], 2)
+            if interior_adjustment["interior_external_premium_pct"] is not None else None
+        ),
+        "interior_external_premium_donors": interior_adjustment["interior_external_premium_donors"],
+        "interior_external_weak_n": interior_adjustment["interior_external_weak_n"],
+        "interior_external_confidence": round(
+            interior_adjustment["interior_external_confidence"], 3
+        ),
+        "interior_external_price_m2": (
+            round(interior_adjustment["interior_external_price_m2"], 1)
+            if interior_adjustment["interior_external_price_m2"] is not None else None
+        ),
+        "interior_external_transition": interior_adjustment["interior_external_transition"],
+        "repair_find_override": repair_find_override,
         "diff_pct": round(diff_pct, 4) if diff_pct is not None else None,
         "robust_z": round(robust_z, 2) if robust_z is not None else None,
         "value_score": round(value_score, 1) if value_score is not None else None,
@@ -3705,7 +3820,7 @@ def report_accuracy(baseline_path, results=None):
 
 
 def check_audit_trail(results, tolerance=0.02):
-    """Can a reader reproduce base_price_m2 from the published columns?
+    """Can a reader reproduce the unadjusted cohort benchmark?
 
     In v4 they could not: the blend used each cohort's credibility-
     adjusted median while the CSV printed the raw one, so recomputing the
@@ -3717,7 +3832,8 @@ def check_audit_trail(results, tolerance=0.02):
     bad = 0
     checked = 0
     for r in results:
-        if r.get("status") != "scored" or not r.get("base_price_m2"):
+        audit_base = r.get("base_price_m2_unadjusted") or r.get("base_price_m2")
+        if r.get("status") != "scored" or not audit_base:
             continue
         total = 0.0
         acc = 0.0
@@ -3730,7 +3846,7 @@ def check_audit_trail(results, tolerance=0.02):
         if total <= 0:
             continue
         checked += 1
-        if abs(acc / total - r["base_price_m2"]) / r["base_price_m2"] > tolerance:
+        if abs(acc / total - audit_base) / audit_base > tolerance:
             bad += 1
     return bad, checked
 
@@ -3871,6 +3987,13 @@ def prepare_baseline(path):
     return rows, usable
 
 
+def build_repair_premium_signals(pool, q25, q75, room_bounds):
+    """Предрасчитать строгие междомовые сигналы один раз на baseline."""
+    return build_premium_signals(
+        pool, _class_score_from_price, room_bounds, q25, q75
+    )
+
+
 def run(input_path, output_path, baseline_path=None, soft_target=True):
     hierarchy_problems = verify_weight_hierarchy()
     if hierarchy_problems:
@@ -3912,6 +4035,9 @@ def run(input_path, output_path, baseline_path=None, soft_target=True):
     ref_areas = median_area_by_rooms(usable_pool)
     spatial_index = SpatialIndex(usable_pool)
     building_index = BuildingIndex(usable_pool)
+    repair_premium_signals = build_repair_premium_signals(
+        usable_pool, q25, q75, room_bounds
+    )
     if area_slopes:
         print(
             "Поправка на площадь (наклон log-log, внутри домов): "
@@ -3925,6 +4051,7 @@ def run(input_path, output_path, baseline_path=None, soft_target=True):
             class_priors=class_priors, area_slopes=area_slopes,
             spatial_index=spatial_index, building_index=building_index,
             ref_areas=ref_areas,
+            repair_premium_signals=repair_premium_signals,
         )
         for r in rows
     ]
@@ -3943,7 +4070,7 @@ def run(input_path, output_path, baseline_path=None, soft_target=True):
     if checked:
         status = "✅" if bad == 0 else "⚠️"
         print(
-            f"{status} Аудит-трейл: base_price_m2 воспроизводится из колонок "
+            f"{status} Аудит-трейл: base_price_m2_unadjusted воспроизводится из колонок "
             f"l*_adjusted_median × l*_weight у {checked - bad}/{checked} строк"
         )
 

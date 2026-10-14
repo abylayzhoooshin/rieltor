@@ -1,22 +1,21 @@
 # Render Blueprint. Создать сервис: Render Dashboard -> New -> Blueprint,
 # указать этот репозиторий. Render прочитает файл и заведёт сервис сам.
 #
-# Тип сервиса — worker (Background Worker), а не web. Оркестратор не
-# слушает HTTP: он бесконечно опрашивает rieltorcollector раз в 60 секунд.
-# Free web service Render усыпляет через 15 минут без входящих запросов и
-# не даёт постоянный диск — для постоянного опроса это не подходит.
+# Теперь это Web Service: он по-прежнему ведёт фоновые циклы, но ещё
+# публикует HTTP API, через который Cleaner забирает фотооценки.
 services:
-  - type: worker
-    name: rieltor-orchestrator
+  - type: web
+    name: rieltor-orchestrator-almaty
     runtime: python
     # Starter (512 МБ) хватает: baseline в памяти занимает ~90 МБ объектов,
     # пик при загрузке ~101 МБ (замерено tracemalloc на 13 390 строках).
     plan: starter
-    # Регион желательно тот же, где уже живут rieltorcollector и
-    # rieltor-cleaner — иначе каждый запрос к ним идёт через океан.
-    region: frankfurt
+    # rieltor-collector-almaty / rieltor-cleaner-almaty живут в Сингапуре —
+    # регион должен совпадать, иначе каждый опрос идёт через океан.
+    region: singapore
     buildCommand: pip install -r requirements.txt
     startCommand: python orchestrator_v7.py
+    healthCheckPath: /health
     autoDeploy: true
 
     # ПОСТОЯННЫЙ ДИСК — обязателен.
@@ -26,12 +25,15 @@ services:
     #   ever_sent_ids.json      — реестр отправленных (бот начал бы слать
     #                             заново то, что уже отправлял);
     #   collector_state.json    — курсор ленты событий;
-    #   notifications_log_v3.csv — журнал отправок;
+    #   notifications_log_v4.csv — журнал отправок;
+    #   prediction_audit.sqlite3 — компактная история всех прогнозов;
+    #   telegram_access.json — доступы и настройки Telegram;
+    #   telegram_details.sqlite3 — ограниченный TTL-кэш кнопки аналогов;
     #   baseline/               — скачанный эталон (28 МБ заново каждый раз).
     #
     # 1 ГБ с запасом: baseline ~28 МБ + журналы, которые растут медленно.
     disk:
-      name: rieltor-data
+      name: rieltor-data-almaty
       mountPath: /var/data
       sizeGB: 1
 
@@ -59,9 +61,9 @@ services:
       - key: RIELTOR_COLLECTOR_API_KEY
         sync: false
 
-      # Источник baseline. Ключ обязателен: сам файл baseline в git не
-      # лежит (28 МБ, пересобирается раз в 12 часов), поэтому на чистом
-      # диске взять его можно только отсюда.
+      # Источник baseline жёстко привязан к Almaty Cleaner.
+      - key: RIELTOR_CLEANER_URL
+        value: https://rieltor-cleaner-almaty.onrender.com
       - key: RIELTOR_CLEANER_API_KEY
         sync: false
 
@@ -69,20 +71,39 @@ services:
       - key: OPENAI_API_KEY
         sync: false
 
+      # Фотооценка и API обмена с Cleaner.
+      - key: RENOVATION_OPENAI_API_KEY
+        sync: false
+      - key: INTERIOR_EXCHANGE_API_KEY
+        sync: false
+      - key: INTERIOR_ENABLED
+        value: "1"
+      - key: INTERIOR_CONCURRENCY
+        value: "2"
+      - key: INTERIOR_ERROR_RETRY_H
+        value: "6"
+      # Свежая карточка ждёт фотооценку не более 20 минут. Сам Collector
+      # при этом не блокируется: решение лежит в durable SQLite-очереди.
+      - key: INTERIOR_DECISION_MAX_WAIT_SEC
+        value: "1200"
+
       # Доставка. Если не задать обе — оркестратор работает молча:
       # пишет журнал и реестр, но ничего не отправляет.
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: TELEGRAM_CHAT_ID
         sync: false
+      # Единственный пользователь, которому доступны /users, /grant,
+      # /revoke и настройки рассылки. Это Telegram user_id, не username.
+      - key: TELEGRAM_ADMIN_USER_ID
+        sync: false
 
       # --- необязательные, у всех есть разумные умолчания в коде ---
       - key: OPENAI_MODEL
         value: gpt-5-mini
-      # "end" — при первом запуске встать в конец ленты и не разбирать
-      # всю историю. На чистом диске это важно: с "beginning" первый
-      # запуск прогнал бы через LLM всю накопленную ленту событий.
+      # Чистый запуск читает всю доступную ленту: так ни один new/price_drop
+      # ID не потеряет фотооценку. Старые события не идут в Stage 2/Telegram.
       - key: COLLECTOR_START_FROM
-        value: end
+        value: beginning
       - key: COLLECTOR_POLL_INTERVAL_SEC
         value: "60"

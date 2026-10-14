@@ -24,6 +24,21 @@ cache/
 ever_sent_ids.json
 collector_state.json
 baseline_state.json
+telegram_access.json
+/telegram_details.sqlite3*
 notifications_log_v2.csv
 notifications_log_v3.csv
+notifications_log_v4.csv
+prediction_audit.sqlite3*
 apartments_table.csv
+
+# Фото, ответы и локальные страницы эксперимента оценки интерьера.
+/interior/
+/interior_online.sqlite3*
+/interior_content_cache.sqlite3*
+
+# Локальный handoff-комплект уже разложен по корню; сам дубль не публикуем.
+/UPLOAD_THIS_TO_GITHUB/
+
+# Самодостаточные HTML-отчёты ручной проверки содержат встроенные данные.
+/entity_pair_*.html

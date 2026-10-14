@@ -1,10 +1,13 @@
-# Единственная внешняя зависимость всего проекта — клиент OpenAI,
-# который использует Stage 2 (pipeline/stage2_llm_analyze.py) для разбора
-# описаний объявлений. Всё остальное (оркестратор, Stage 3, очистка) —
-# чистая стандартная библиотека Python: asyncio, csv, json, urllib.
+# Клиент OpenAI используется Stage 2 и фотооценкой. Изображения отправляются
+# оригинальными байтами с detail=low; отдельная библиотека обработки фото не
+# нужна и не должна незаметно менять результат оценки.
 #
 # Версия зафиксирована точно, чтобы деплой был воспроизводимым: Stage 2
 # вызывает chat.completions с параметрами reasoning_effort и
 # max_completion_tokens, и молчаливая смена мажорной версии SDK способна
 # их сломать. Поднимать — осознанно и с проверкой прогона.
 openai==3.16.2
+# OpenAI 3.16.2 imports its async aiohttp transport at module import time.
+# Older globally installed aiohttp (for example 3.8.6) has no
+# SocketTimeoutError and makes the process fail before the first API call.
+aiohttp==3.12.15

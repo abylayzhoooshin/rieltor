@@ -72,7 +72,7 @@ README.md/CLAUDE.md — почему лента устроена именно т
       ответственность rieltorcollector;
     - не строит baseline сам — раз в 12 часов скачивает готовый чистый
       файл с rieltor-cleaner (GET /baseline/clean.csv, X-API-Key) и
-      целиком заменяет им baseline/krisha_astana_baseline.csv.
+      целиком заменяет им baseline/krisha_almaty_baseline.csv.
 
 Запуск:
     python orchestrator_v7.py
@@ -89,8 +89,23 @@ import asyncio
 import csv
 import json
 import os
+import sqlite3
 import sys
 from datetime import datetime, timezone
+
+from interior_api import start_interior_api
+from interior_online_store import CleanerBaselineIndex, InteriorOnlineStore, TERMINAL_STATUSES
+from interior_service import InteriorAuthenticationError, InteriorGateway, InteriorQueueWorker
+from renovation_store import RenovationStore
+from telegram_access import TelegramAccessStore, TelegramDetailsStore
+
+
+# Windows may expose CP1251 stdout even in a modern PowerShell terminal.  The
+# service logs contain Russian text and a few Unicode status symbols; one such
+# symbol must never abort a collector cycle before its cursor is persisted.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
 
 
 def _load_dotenv(path):
@@ -127,7 +142,7 @@ BASE_DIR = os.environ.get("KRISHA_BASE_DIR", os.path.dirname(os.path.abspath(__f
 #
 # DATA_DIR — где лежит всё, что должно пережить рестарт и деплой:
 # реестр отправленных (ever_sent_ids.json), курсор ленты
-# (collector_state.json), журнал (notifications_log_v3.csv), скачанный
+# (collector_state.json), журнал (notifications_log_v4.csv), скачанный
 # baseline и cache/. На Render это точка монтирования постоянного диска
 # (KRISHA_DATA_DIR=/var/data). Локально переменная не задана, и DATA_DIR
 # совпадает с BASE_DIR — то есть прежнее поведение и прежние пути к
@@ -147,7 +162,7 @@ CACHE_DIR = os.path.join(DATA_DIR, "cache")
 os.makedirs(CACHE_DIR, exist_ok=True)
 os.makedirs(BASELINE_DIR, exist_ok=True)
 
-BASELINE_CSV = os.path.join(BASELINE_DIR, "krisha_astana_baseline.csv")
+BASELINE_CSV = os.path.join(BASELINE_DIR, "krisha_almaty_baseline.csv")
 STAGE3_OUTPUT_COLLECTOR_CSV = os.path.join(CACHE_DIR, "stage3_incoming_collector_latest.csv")
 STAGE3_MODULE = os.path.join(PIPELINE_DIR, "stage3_benchmark_v3.py")
 INCOMING_CLEAN_SCRIPT = os.path.join(PIPELINE_DIR, "incoming_clean_v2.py")
@@ -163,7 +178,15 @@ COLLECTOR_STATE_FILE = os.path.join(DATA_DIR, "collector_state.json")
 # base_price_m2_corrected и нет review_flags/robust_z), а
 # append_notifications намеренно отказывается дописывать в файл с чужим
 # заголовком. Заводим новый файл; v2 остаётся нетронутым как история.
-NOTIFICATIONS_LOG_CSV = os.path.join(DATA_DIR, "notifications_log_v3.csv")
+NOTIFICATIONS_LOG_CSV = os.path.join(DATA_DIR, "notifications_log_v4.csv")
+# Компактный неизменяемый журнал ВСЕХ прогнозов по событиям Collector, а
+# не только квартир, отправленных в Telegram.
+PREDICTION_AUDIT_DB = os.path.join(DATA_DIR, "prediction_audit.sqlite3")
+PREDICTION_MODEL_VERSION = "stage3-v7-strict-repair-premium"
+TELEGRAM_ACCESS_FILE = os.path.join(DATA_DIR, "telegram_access.json")
+TELEGRAM_DETAILS_DB = os.path.join(DATA_DIR, "telegram_details.sqlite3")
+_telegram_access_store = TelegramAccessStore(TELEGRAM_ACCESS_FILE)
+_telegram_details_store = TelegramDetailsStore(TELEGRAM_DETAILS_DB)
 
 # ============================== TELEGRAM ==============================
 
@@ -185,8 +208,19 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_IDS = [
     c.strip() for c in os.environ.get("TELEGRAM_CHAT_ID", "").split(",") if c.strip()
 ]
-TELEGRAM_ENABLED = bool(TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_IDS)
-TELEGRAM_API_URL = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+# Только этот Telegram user_id может менять настройки и выдавать доступ.
+# Для старых деплоев первый положительный TELEGRAM_CHAT_ID служит безопасным
+# fallback: в личном чате chat_id совпадает с user_id. Для группы fallback
+# намеренно не применяется — отрицательный group chat_id не является user_id.
+TELEGRAM_ADMIN_USER_ID = os.environ.get("TELEGRAM_ADMIN_USER_ID", "").strip()
+if not TELEGRAM_ADMIN_USER_ID:
+    TELEGRAM_ADMIN_USER_ID = next(
+        (value for value in TELEGRAM_CHAT_IDS if value.isdigit()), "",
+    )
+TELEGRAM_ENABLED = bool(
+    TELEGRAM_BOT_TOKEN and (TELEGRAM_CHAT_IDS or TELEGRAM_ADMIN_USER_ID)
+)
+TELEGRAM_API_ROOT = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
 
 TELEGRAM_SEND_DELAY_SEC = 1.2   # запас от flood control (Telegram лимитирует ~1 сообщение/сек в чат)
 TELEGRAM_MAX_RETRIES = 3
@@ -213,13 +247,13 @@ COLLECTOR_TIMEOUT_SEC = 15
 # при этом двигается), чтобы будущий новый тип события не ушёл в оценку
 # как обычное объявление.
 COLLECTOR_REASONS = ("new", "price_drop")
-# Событие старше этого возраста (по observed_at) пропускается: после
-# простоя сервиса не хотим оценивать и слать то, что уже неактуально.
-# 0 — не ограничивать.
+# Событие старше этого возраста не идёт в Stage 2/Stage 3/Telegram.
+# Фотооценка проверяет и старые события, чтобы после простоя не терять ID.
+# 0 — не ограничивать Stage 2/Telegram.
 COLLECTOR_MAX_EVENT_AGE_H = float(os.environ.get("COLLECTOR_MAX_EVENT_AGE_H", "12"))
 # Первый запуск (нет collector_state.json): "end" — встать в конец ленты и
 # не разбирать историю; "beginning" — начать с since=0.
-COLLECTOR_START_FROM = os.environ.get("COLLECTOR_START_FROM", "end").strip().lower()
+COLLECTOR_START_FROM = os.environ.get("COLLECTOR_START_FROM", "beginning").strip().lower()
 # Сколько раз подряд можно не разобрать одни и те же объявления в Stage 2,
 # прежде чем их пропустить, а не держать всю ленту на одной странице.
 LLM_FAIL_MAX_ATTEMPTS = 3
@@ -232,7 +266,7 @@ LLM_FAIL_MAX_ATTEMPTS = 3
 # локальный BASELINE_CSV. Ключ — только из окружения, в коде его нет.
 # Пустой ключ — автообновление выключено, работаем с локальным файлом.
 RIELTOR_CLEANER_URL = os.environ.get(
-    "RIELTOR_CLEANER_URL", "https://rieltor-cleaner.onrender.com"
+    "RIELTOR_CLEANER_URL", "https://rieltor-cleaner-almaty.onrender.com"
 ).strip().rstrip("/")
 RIELTOR_CLEANER_API_KEY = os.environ.get("RIELTOR_CLEANER_API_KEY", "").strip()
 BASELINE_REFRESH_ENABLED = bool(RIELTOR_CLEANER_URL and RIELTOR_CLEANER_API_KEY)
@@ -250,6 +284,29 @@ BASELINE_STATE_FILE = os.path.join(DATA_DIR, "baseline_state.json")
 # карточки, и Stage 3 этого не требует: они нужны только входящим строкам.
 BASELINE_REQUIRED_COLUMNS = ("id", "price", "rooms", "square_m2")
 
+# ============================== ФОТООЦЕНКА ИНТЕРЬЕРА ==============================
+
+# Пока переключатель выключен, новый слой вообще не влияет на прежний pipeline.
+# После локальной проверки он включается одной переменной окружения.
+INTERIOR_ENABLED = os.environ.get("INTERIOR_ENABLED", "0").strip().lower() in {
+    "1", "true", "yes", "on",
+}
+INTERIOR_DB = os.path.join(DATA_DIR, "interior_online.sqlite3")
+INTERIOR_CACHE_DB = os.path.join(DATA_DIR, "interior_content_cache.sqlite3")
+INTERIOR_EXCHANGE_API_KEY = os.environ.get("INTERIOR_EXCHANGE_API_KEY", "").strip()
+INTERIOR_API_HOST = os.environ.get("INTERIOR_API_HOST", "0.0.0.0").strip()
+INTERIOR_API_PORT = int(os.environ.get("PORT", os.environ.get("INTERIOR_API_PORT", "8080")))
+INTERIOR_CONCURRENCY = int(os.environ.get("INTERIOR_CONCURRENCY", "2"))
+INTERIOR_RETRY_DELAY_SEC = int(os.environ.get("INTERIOR_RETRY_DELAY_SEC", "30"))
+INTERIOR_ERROR_RETRY_H = float(os.environ.get("INTERIOR_ERROR_RETRY_H", "6"))
+INTERIOR_OPENAI_API_KEY = os.environ.get("RENOVATION_OPENAI_API_KEY", "").strip()
+INTERIOR_DECISION_MAX_WAIT_SEC = int(
+    os.environ.get("INTERIOR_DECISION_MAX_WAIT_SEC", "1200")
+)
+
+_interior_gateway = None
+_interior_store = None
+
 # Схема приведена к фактическому OUTPUT_EXTRA_FIELDNAMES версии v3.
 # Изменения относительно v2-схемы:
 #   - убрано base_price_m2_corrected: в v3 поправка на этаж больше не
@@ -266,7 +323,12 @@ NOTIFICATIONS_FIELDNAMES = [
     "photo_count", "seller_type", "owner_name", "is_identity_confirmed",
     "seller_class", "seller_confidence",
     "verdict", "verdict_reason",
-    "diff_pct", "base_price_m2", "robust_z", "value_score",
+    "diff_pct", "base_price_m2_unadjusted", "base_price_m2", "robust_z", "value_score",
+    "interior_status", "interior_score", "interior_coverage",
+    "interior_reference_score", "interior_reference_n",
+    "interior_adjustment_confidence", "interior_adjustment_beta",
+    "interior_price_adjustment_pct",
+    "interior_adjustment_applied", "interior_adjustment_reason",
     "quality_evidence_score", "price_quality_score", "price_quality_label",
     "benchmark_confidence", "data_confidence",
     "cohort_level", "cohort_stop_level", "cohort_size", "confidence_weight",
@@ -302,6 +364,21 @@ def validate_configuration():
             "OPENAI_API_KEY не задан — Stage 2 (разбор описаний) без него не работает. "
             "Впишите OPENAI_API_KEY=... в файл .env рядом с orchestrator_v7.py."
         )
+    if INTERIOR_ENABLED:
+        if not INTERIOR_OPENAI_API_KEY:
+            raise ValueError(
+                "INTERIOR_ENABLED=1, но нет отдельного RENOVATION_OPENAI_API_KEY."
+            )
+        if not INTERIOR_EXCHANGE_API_KEY:
+            raise ValueError(
+                "INTERIOR_ENABLED=1, но INTERIOR_EXCHANGE_API_KEY не задан."
+            )
+        if INTERIOR_CONCURRENCY < 1:
+            raise ValueError("INTERIOR_CONCURRENCY должен быть >= 1.")
+        if INTERIOR_ERROR_RETRY_H <= 0:
+            raise ValueError("INTERIOR_ERROR_RETRY_H должен быть > 0.")
+        if INTERIOR_DECISION_MAX_WAIT_SEC < 0:
+            raise ValueError("INTERIOR_DECISION_MAX_WAIT_SEC не может быть отрицательным.")
 
     if BASELINE_REFRESH_INTERVAL_SEC <= 0 or BASELINE_RETRY_INTERVAL_SEC <= 0:
         raise ValueError("BASELINE_REFRESH_INTERVAL_SEC и BASELINE_RETRY_INTERVAL_SEC должны быть > 0.")
@@ -332,10 +409,16 @@ def validate_configuration():
     print(f"COLLECTOR_KEY  = {masked_key}")
     print(f"COLLECTOR_POLL = каждые {COLLECTOR_POLL_INTERVAL_SEC}s, страница {COLLECTOR_PAGE_LIMIT}")
     print(
-        f"COLLECTOR_FEED = события {COLLECTOR_REASONS}, не старше {COLLECTOR_MAX_EVENT_AGE_H}ч, "
+        f"COLLECTOR_FEED = события {COLLECTOR_REASONS}; Stage 2/Telegram не старше "
+        f"{COLLECTOR_MAX_EVENT_AGE_H}ч; фотооценка обрабатывает всю ленту, "
         f"первый запуск: {COLLECTOR_START_FROM}"
     )
     print(f"STAGE2_MODEL   = {os.environ.get('OPENAI_MODEL', 'gpt-5-mini')} (OpenAI API, пачками)")
+    print(
+        f"INTERIOR       = {'включён' if INTERIOR_ENABLED else 'выключен'}"
+        + (f" (workers={INTERIOR_CONCURRENCY}, port={INTERIOR_API_PORT}, "
+             f"ожидание решения до {INTERIOR_DECISION_MAX_WAIT_SEC}s)" if INTERIOR_ENABLED else "")
+    )
     if BASELINE_REFRESH_ENABLED:
         print(
             f"BASELINE_SRC   = {RIELTOR_CLEANER_URL}/baseline/clean.csv "
@@ -345,7 +428,11 @@ def validate_configuration():
         print("BASELINE_SRC   = выключено (нет RIELTOR_CLEANER_API_KEY), используется локальный файл")
     if TELEGRAM_ENABLED:
         masked = TELEGRAM_BOT_TOKEN[:6] + "..." if len(TELEGRAM_BOT_TOKEN) > 6 else "..."
-        print(f"TELEGRAM       = включён (bot={masked}, получателей: {len(TELEGRAM_CHAT_IDS)} — {TELEGRAM_CHAT_IDS})")
+        print(
+            f"TELEGRAM       = включён (bot={masked}, "
+            f"получателей: {len(telegram_recipients(include_paused=True))}, "
+            f"admin: {'задан' if TELEGRAM_ADMIN_USER_ID else 'не задан'})"
+        )
     else:
         print(
             "TELEGRAM       = выключен (задайте TELEGRAM_BOT_TOKEN и "
@@ -482,7 +569,7 @@ def append_notifications(path, rows):
         if header != NOTIFICATIONS_FIELDNAMES:
             raise RuntimeError(
                 f"{path} имеет старую/несовместимую схему. "
-                f"Текущая схема — Stage 3 v3 (notifications_log_v3.csv); "
+                f"Текущая схема — Stage 3 + interior (notifications_log_v4.csv); "
                 f"не дописываем в CSV с другим набором колонок."
             )
     with open(path, "a", encoding="utf-8-sig", newline="") as f:
@@ -508,7 +595,7 @@ def escape_html(text):
 
 
 def format_deviation(value):
-    """Отклонение от базы человеческим языком: величина + направление.
+    """Отклонение от базы: направление только цветом и стрелкой.
 
     Сырой diff_pct показывать нельзя. Он равен (база - цена)/база, то
     есть сверху ограничен единицей, а снизу не ограничен ничем: квартира
@@ -524,10 +611,10 @@ def format_deviation(value):
     if v is None:
         return "—", "📊"
     if v > 0:
-        return f"дешевле базы на {v * 100:.1f}%", "📉"
+        return f"{v * 100:.1f}%", "🟢⬇️"
     if v < 0:
-        return f"дороже базы на {abs(v) * 100:.1f}%", "📈"
-    return "ровно по базе", "📊"
+        return f"{abs(v) * 100:.1f}%", "🔴⬆️"
+    return "0.0%", "⚪️"
 
 
 def format_diff_pct(value):
@@ -559,7 +646,7 @@ def review_direction(notif_row):
 # line rather than a silent cut.
 COHORT_MESSAGE_MAX_ROWS = 20
 
-# Which verdicts get the cohort attached. НАХОДКА because that is the
+# Which verdicts get the on-demand cohort button. НАХОДКА because that is the
 # claim worth auditing before spending time on a viewing; ТРЕБУЕТ
 # ПРОВЕРКИ because its whole point is that the cohort itself is
 # suspect, so the comparables are exactly what a human needs to see.
@@ -575,7 +662,7 @@ _COHORT_LEVEL_LABEL = {
 
 
 def format_cohort_message(row):
-    """Second message: the comparables the verdict was computed from.
+    """On-demand message: the comparables the verdict was computed from.
 
     Sent separately rather than appended to the main card so the primary
     notification stays short and scannable on a phone, and so a failure
@@ -630,8 +717,15 @@ def format_cohort_message(row):
     if target_pm2:
         header.append(f"Цена объекта: <b>{int(target_pm2):,} ₸/м²</b>".replace(",", " "))
     base_pm2 = to_float(row.get("base_price_m2"))
+    raw_base_pm2 = to_float(row.get("base_price_m2_unadjusted"))
+    adjustment_applied = _is_true(row.get("interior_adjustment_applied"))
+    if adjustment_applied and raw_base_pm2:
+        header.append(
+            f"База аналогов до ремонта: <b>{int(raw_base_pm2):,} ₸/м²</b>".replace(",", " ")
+        )
     if base_pm2:
-        header.append(f"База (взвешенная по когортам): <b>{int(base_pm2):,} ₸/м²</b>".replace(",", " "))
+        label = "Справедливая с учётом ремонта" if adjustment_applied else "База (взвешенная по когортам)"
+        header.append(f"{label}: <b>{int(base_pm2):,} ₸/м²</b>".replace(",", " "))
     # Медиана показанного среза сама по себе ни о чём не говорит, а вот
     # медиана всей когорты — тот ориентир, относительно которого читатель
     # проверяет вердикт.
@@ -667,6 +761,8 @@ def format_cohort_message(row):
     return "\n".join(x for x in lines if x != "" or True)
 
 
+# Начальное/legacy-значение. После первого запуска режим хранится в
+# telegram_access.json и меняется администратором командой /mode.
 # Отправлять ли ВСЕ квартиры, а не только те, что прошли
 # candidate_is_sendable. Диагностический режим: нужен, чтобы оценивать
 # работу самой модели — что она решила по каждому кандидату и на чём, —
@@ -680,6 +776,10 @@ def format_cohort_message(row):
 # known_ids.json: первый прогон после этого выгребает всё окно списка
 # разом (наблюдалось 60 кандидатов) и рассылка займёт пару минут.
 SEND_ALL_VERDICTS = True
+
+
+def telegram_send_all_verdicts():
+    return _telegram_access_store.settings()["send_mode"] == "all"
 
 
 def explain_confidence(row):
@@ -742,17 +842,9 @@ def format_telegram_message(notif_row, full_row=None):
         "РУЧНАЯ ПРОВЕРКА": "🔎",
     }.get(verdict, "🔎")
 
-    # Без этой пометки сообщение про переоценку выглядит как сообщение
-    # про скидку: иконка та же, а "Отклонение от базы: -38.0%" читается
-    # как выгода, хотя означает "дороже базы на 38%".
-    direction = review_direction(notif_row) if verdict == "ТРЕБУЕТ ПРОВЕРКИ" else None
-    if direction == "переоценка":
-        verdict_icon = "🔺"
-        verdict_label = f"{verdict} (дороже базы)"
-    elif direction == "скидка":
-        verdict_label = f"{verdict} (дешевле базы)"
-    else:
-        verdict_label = verdict
+    # Направление уже однозначно показывает цветная стрелка отклонения.
+    # Не дублируем его словами в вердикте.
+    verdict_label = verdict
 
     deviation_text, deviation_icon = format_deviation(notif_row.get("diff_pct"))
 
@@ -762,48 +854,85 @@ def format_telegram_message(notif_row, full_row=None):
         f"{deviation_icon} Отклонение: {escape_html(deviation_text)}",
         f"🏆 Вердикт: {escape_html(verdict_label)}",
         f"👤 Продавец: {escape_html(notif_row.get('seller_class') or '—')}",
-        f"📊 Когорта: уровень {escape_html(notif_row.get('cohort_level') or '—')}"
-        f", n={escape_html(notif_row.get('cohort_size') or '—')}"
-        f", уверенность бенчмарка {escape_html(notif_row.get('benchmark_confidence') or '—')}",
     ]
 
-    # Разбор уверенности — главное, чего не хватало: карточка сообщала
-    # «уверенность 0.275» и не говорила, что за этим стоит.
-    if full_row is not None:
-        why = explain_confidence(full_row)
-        if why:
-            lines.append(f"🔍 {escape_html(why)}")
+    confidence = to_float(notif_row.get("benchmark_confidence"))
+    if confidence is None:
+        confidence_text = "—"
+    else:
+        tier = "высокая" if confidence >= 0.60 else (
+            "средняя" if confidence >= 0.49 else "низкая"
+        )
+        confidence_text = f"{confidence:.3f} ({tier})"
+    lines.append(f"🎯 Уверенность: {escape_html(confidence_text)}")
 
-    url = notif_row.get("url")
-    if url:
-        lines.append(f'🔗 <a href="{escape_html(url)}">Открыть на Krisha</a>')
+    interior_score = to_float(notif_row.get("interior_score"))
+    interior_reference = to_float(notif_row.get("interior_reference_score"))
+    interior_adjustment = to_float(notif_row.get("interior_price_adjustment_pct"))
+    if interior_score is not None and interior_reference is not None:
+        sign = "+" if (interior_adjustment or 0) > 0 else ""
+        lines.append(
+            f"🛠 Ремонт: <b>{interior_score:.1f}/10</b>; "
+            f"у аналогов {interior_reference:.1f}; "
+            f"поправка справедливой цены {sign}{(interior_adjustment or 0):.1f}%"
+        )
+    else:
+        status = notif_row.get("interior_status") or "нет оценки"
+        coverage = notif_row.get("interior_coverage")
+        detail = f"{status}/{coverage}" if coverage else status
+        lines.append(f"🛠 Ремонт: {escape_html(detail)} — цену не корректировал")
 
     return "\n".join(lines)
 
 
-def _telegram_post(payload):
-    """Синхронный HTTP POST без внешних зависимостей — запускается через
-    run_in_executor, чтобы не блокировать event loop."""
+def _telegram_api_post(method, payload, *, timeout=TELEGRAM_TIMEOUT_SEC):
+    """Синхронный вызов Bot API без сторонних зависимостей."""
     import urllib.request
     import urllib.parse
     import urllib.error
 
     data = urllib.parse.urlencode(payload).encode("utf-8")
-    req = urllib.request.Request(TELEGRAM_API_URL, data=data, method="POST")
+    req = urllib.request.Request(
+        f"{TELEGRAM_API_ROOT}/{method}", data=data, method="POST",
+    )
     try:
-        with urllib.request.urlopen(req, timeout=TELEGRAM_TIMEOUT_SEC) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.status, resp.read().decode(errors="replace")
     except urllib.error.HTTPError as exc:
         return exc.code, exc.read().decode(errors="replace")
 
 
-async def _send_to_one_chat(chat_id, text):
+def _telegram_post(payload):
+    """Обратная совместимость тестов и прежнего sendMessage-кода."""
+    return _telegram_api_post("sendMessage", payload)
+
+
+async def _telegram_call(method, payload, *, timeout=TELEGRAM_TIMEOUT_SEC):
+    loop = asyncio.get_running_loop()
+    status, body = await loop.run_in_executor(
+        None,
+        lambda: _telegram_api_post(method, payload, timeout=timeout),
+    )
+    try:
+        parsed = json.loads(body)
+    except (TypeError, json.JSONDecodeError):
+        parsed = {"ok": False, "description": str(body)[:500]}
+    return status, parsed
+
+
+async def _send_to_one_chat(
+    chat_id, text, *, reply_markup=None, disable_web_page_preview=False,
+):
     payload = {
         "chat_id": chat_id,
         "text": text,
         "parse_mode": "HTML",
-        "disable_web_page_preview": "false",
+        "disable_web_page_preview": (
+            "true" if disable_web_page_preview else "false"
+        ),
     }
+    if reply_markup:
+        payload["reply_markup"] = json.dumps(reply_markup, ensure_ascii=False)
 
     loop = asyncio.get_running_loop()
     for attempt in range(1, TELEGRAM_MAX_RETRIES + 1):
@@ -821,10 +950,30 @@ async def _send_to_one_chat(chat_id, text):
     return False
 
 
-async def send_telegram_message(text):
-    """Рассылает ОДНО и то же сообщение всем получателям из
-    TELEGRAM_CHAT_IDS независимо друг от друга: сбой у одного (например,
-    он заблокировал бота) не должен мешать доставке остальным.
+def telegram_recipients(*, include_paused=False):
+    """Legacy env + выданные администратором доступы, без дублей."""
+    settings = _telegram_access_store.settings()
+    if settings["paused"] and not include_paused:
+        return []
+    values = list(TELEGRAM_CHAT_IDS)
+    values.extend(_telegram_access_store.recipients())
+    if TELEGRAM_ADMIN_USER_ID:
+        values.append(TELEGRAM_ADMIN_USER_ID)
+    revoked = _telegram_access_store.revoked()
+    return list(dict.fromkeys(
+        str(value) for value in values
+        if str(value)
+        and (
+            str(value) == TELEGRAM_ADMIN_USER_ID
+            or str(value) not in revoked
+        )
+    ))
+
+
+async def send_telegram_message(
+    text, *, chat_ids=None, reply_markup=None, disable_web_page_preview=False,
+):
+    """Рассылает сообщение всем активным получателям независимо.
 
     Возвращает True, если доставлено хотя бы одному — тем же смыслом
     пользовался единственный получатель раньше, и от него зависит,
@@ -833,10 +982,289 @@ async def send_telegram_message(text):
     if not TELEGRAM_ENABLED:
         return False
 
+    recipients = telegram_recipients() if chat_ids is None else [
+        str(value) for value in chat_ids
+    ]
+    if not recipients:
+        return False
     results = await asyncio.gather(*(
-        _send_to_one_chat(chat_id, text) for chat_id in TELEGRAM_CHAT_IDS
+        _send_to_one_chat(
+            chat_id, text, reply_markup=reply_markup,
+            disable_web_page_preview=disable_web_page_preview,
+        )
+        for chat_id in recipients
     ))
     return any(results)
+
+
+def _telegram_admin_help():
+    return (
+        "🛠 <b>Управление ботом</b>\n"
+        "/status — состояние и режимы\n"
+        "/users — доступы и ожидающие запросы\n"
+        "/grant ID — выдать доступ\n"
+        "/revoke ID — отозвать доступ\n"
+        "/mode all|useful — все вердикты или только полезные\n"
+        "/cohorts all|important|off — кому показывать кнопку аналогов\n"
+        "/pause и /resume — остановить/возобновить рассылку"
+    )
+
+
+def _telegram_settings_text():
+    snapshot = _telegram_access_store.snapshot()
+    settings = snapshot["settings"]
+    return (
+        "⚙️ <b>Telegram</b>\n"
+        f"Рассылка: {'пауза' if settings['paused'] else 'активна'}\n"
+        f"Вердикты: {escape_html(settings['send_mode'])}\n"
+        f"Кнопка аналогов: {escape_html(settings['cohort_mode'])}\n"
+        f"Пользователей: {len(snapshot['authorized'])}\n"
+        f"Запросов доступа: {len(snapshot['pending'])}"
+    )
+
+
+def _telegram_user_label(entry):
+    username = entry.get("username")
+    name = entry.get("display_name")
+    label = f"@{username}" if username else (name or "без имени")
+    return f"{escape_html(label)} — <code>{escape_html(entry.get('chat_id'))}</code>"
+
+
+async def _telegram_notify_access_request(entry):
+    keyboard = {
+        "inline_keyboard": [[
+            {
+                "text": "✅ Разрешить",
+                "callback_data": f"access:grant:{entry['chat_id']}",
+            },
+            {
+                "text": "❌ Отклонить",
+                "callback_data": f"access:deny:{entry['chat_id']}",
+            },
+        ]],
+    }
+    await _send_to_one_chat(
+        TELEGRAM_ADMIN_USER_ID,
+        "🔐 <b>Запрос доступа</b>\n" + _telegram_user_label(entry),
+        reply_markup=keyboard,
+        disable_web_page_preview=True,
+    )
+
+
+async def _telegram_handle_admin_command(chat_id, command, argument):
+    if command in {"/start", "/help"}:
+        await _send_to_one_chat(chat_id, _telegram_admin_help())
+        return
+    if command in {"/status", "/settings"}:
+        await _send_to_one_chat(chat_id, _telegram_settings_text())
+        return
+    if command == "/users":
+        snapshot = _telegram_access_store.snapshot()
+        lines = ["👥 <b>Разрешённые пользователи</b>"]
+        authorized = list(snapshot["authorized"].values())
+        lines.extend(_telegram_user_label(item) for item in authorized[:50])
+        if not authorized:
+            lines.append("— пока никого")
+        lines.append("\n⏳ <b>Ожидают решения</b>")
+        pending = list(snapshot["pending"].values())
+        lines.extend(_telegram_user_label(item) for item in pending[:50])
+        if not pending:
+            lines.append("— нет запросов")
+        await _send_to_one_chat(chat_id, "\n".join(lines))
+        return
+    if command in {"/grant", "/revoke"}:
+        try:
+            target = argument.split()[0]
+            if command == "/grant":
+                _telegram_access_store.grant(
+                    target, granted_by=TELEGRAM_ADMIN_USER_ID,
+                )
+                answer = f"✅ Доступ выдан: <code>{escape_html(target)}</code>"
+                await _send_to_one_chat(
+                    target,
+                    "✅ Доступ к уведомлениям разрешён администратором.",
+                )
+            else:
+                changed = _telegram_access_store.revoke(target)
+                answer = (
+                    "✅ Доступ отозван" if changed else "ℹ️ ID не найден"
+                ) + f": <code>{escape_html(target)}</code>"
+            await _send_to_one_chat(chat_id, answer)
+        except (IndexError, ValueError) as exc:
+            await _send_to_one_chat(chat_id, f"⚠️ {escape_html(exc)}")
+        return
+    if command == "/mode":
+        value = argument.strip().lower()
+        try:
+            _telegram_access_store.set_setting("send_mode", value)
+            await _send_to_one_chat(chat_id, _telegram_settings_text())
+        except ValueError:
+            await _send_to_one_chat(chat_id, "Использование: /mode all или /mode useful")
+        return
+    if command == "/cohorts":
+        value = argument.strip().lower()
+        try:
+            _telegram_access_store.set_setting("cohort_mode", value)
+            await _send_to_one_chat(chat_id, _telegram_settings_text())
+        except ValueError:
+            await _send_to_one_chat(
+                chat_id, "Использование: /cohorts all, important или off",
+            )
+        return
+    if command in {"/pause", "/resume"}:
+        _telegram_access_store.set_setting("paused", command == "/pause")
+        await _send_to_one_chat(chat_id, _telegram_settings_text())
+        return
+    await _send_to_one_chat(chat_id, _telegram_admin_help())
+
+
+async def _telegram_handle_message(message):
+    chat = message.get("chat") or {}
+    sender = message.get("from") or {}
+    chat_id = str(chat.get("id") or "")
+    user_id = str(sender.get("id") or "")
+    text = str(message.get("text") or "").strip()
+    if not chat_id or not user_id or not text.startswith("/"):
+        return
+    head, _, argument = text.partition(" ")
+    command = head.split("@", 1)[0].lower()
+    if user_id == TELEGRAM_ADMIN_USER_ID:
+        await _telegram_handle_admin_command(chat_id, command, argument)
+        return
+    if chat.get("type") != "private":
+        await _send_to_one_chat(
+            chat_id, "Для запроса доступа напишите боту в личные сообщения.",
+        )
+        return
+    if _telegram_access_store.is_authorized(chat_id):
+        await _send_to_one_chat(
+            chat_id,
+            "✅ Доступ активен. Вы будете получать новые уведомления. "
+            "Настройки доступны только администратору.",
+        )
+        return
+    display_name = " ".join(
+        value for value in (sender.get("first_name"), sender.get("last_name"))
+        if value
+    )
+    status, entry = _telegram_access_store.request_access(
+        chat_id=chat_id,
+        user_id=user_id,
+        username=sender.get("username") or "",
+        display_name=display_name,
+    )
+    if status == "requested":
+        await _telegram_notify_access_request(entry)
+        text = "⏳ Запрос отправлен администратору."
+    else:
+        text = "⏳ Запрос уже ожидает решения администратора."
+    await _send_to_one_chat(chat_id, text)
+
+
+async def _telegram_handle_callback(callback):
+    sender_id = str((callback.get("from") or {}).get("id") or "")
+    callback_id = callback.get("id")
+    data = str(callback.get("data") or "")
+
+    if data.startswith("cohort:"):
+        chat_id = str(
+            (((callback.get("message") or {}).get("chat") or {}).get("id"))
+            or ""
+        )
+        allowed = (
+            sender_id == TELEGRAM_ADMIN_USER_ID
+            or chat_id in telegram_recipients(include_paused=True)
+        )
+        if not allowed:
+            if callback_id:
+                await _telegram_call(
+                    "answerCallbackQuery",
+                    {"callback_query_id": callback_id, "text": "Нет доступа"},
+                )
+            return
+        listing_id = data.split(":", 1)[1]
+        detail = _telegram_details_store.get(listing_id)
+        if callback_id:
+            await _telegram_call(
+                "answerCallbackQuery",
+                {
+                    "callback_query_id": callback_id,
+                    "text": "Открываю базу сравнения" if detail else "Детали уже устарели",
+                },
+            )
+        if detail and chat_id:
+            await _send_to_one_chat(
+                chat_id, detail, disable_web_page_preview=True,
+            )
+        return
+
+    if sender_id != TELEGRAM_ADMIN_USER_ID:
+        if callback_id:
+            await _telegram_call(
+                "answerCallbackQuery",
+                {"callback_query_id": callback_id, "text": "Нет доступа"},
+            )
+        return
+    try:
+        prefix, action, target = data.split(":", 2)
+        if prefix != "access" or action not in {"grant", "deny"}:
+            raise ValueError("неизвестное действие")
+        if action == "grant":
+            _telegram_access_store.grant(
+                target, granted_by=TELEGRAM_ADMIN_USER_ID,
+            )
+            await _send_to_one_chat(
+                target, "✅ Администратор разрешил доступ к уведомлениям.",
+            )
+            answer = "Доступ выдан"
+        else:
+            _telegram_access_store.deny(target)
+            await _send_to_one_chat(target, "❌ Запрос доступа отклонён.")
+            answer = "Запрос отклонён"
+        await _send_to_one_chat(
+            TELEGRAM_ADMIN_USER_ID,
+            f"{escape_html(answer)}: <code>{escape_html(target)}</code>",
+        )
+    except (TypeError, ValueError) as exc:
+        answer = str(exc)
+    if callback_id:
+        await _telegram_call(
+            "answerCallbackQuery",
+            {"callback_query_id": callback_id, "text": answer[:180]},
+        )
+
+
+async def telegram_control_loop():
+    """Long polling команд; сырые Telegram updates на диск не сохраняются."""
+    print("   [telegram-control] админское управление и доступы включены")
+    while True:
+        payload = {
+            "offset": _telegram_access_store.update_offset,
+            "timeout": 25,
+            "allowed_updates": json.dumps(["message", "callback_query"]),
+        }
+        try:
+            status, body = await _telegram_call(
+                "getUpdates", payload, timeout=35,
+            )
+            if status != 200 or not body.get("ok"):
+                raise RuntimeError(body.get("description") or f"HTTP {status}")
+            for update in body.get("result") or []:
+                if update.get("message"):
+                    await _telegram_handle_message(update["message"])
+                elif update.get("callback_query"):
+                    await _telegram_handle_callback(update["callback_query"])
+                _telegram_access_store.advance_offset(
+                    int(update.get("update_id") or 0) + 1,
+                )
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            print(
+                "   ⚠️ [telegram-control] "
+                f"{type(exc).__name__}: {exc}; повтор через 5с"
+            )
+            await asyncio.sleep(5)
 
 
 async def notify_telegram(rows):
@@ -851,7 +1279,38 @@ async def notify_telegram(rows):
     for row in rows:
         notif_row = to_notification_row(row)
         text = format_telegram_message(notif_row, full_row=row)
-        ok = await send_telegram_message(text)
+        url = notif_row.get("url")
+        buttons = []
+        if url:
+            buttons.append({"text": "🏠 Открыть на Krisha", "url": str(url)})
+
+        # Детали не летят вторым сообщением автоматически. Храним только
+        # готовый текст (максимум 500 записей / 1 час) и выдаём по кнопке.
+        cohort_mode = _telegram_access_store.settings()["cohort_mode"]
+        wants_details = (
+            cohort_mode == "all"
+            or (
+                cohort_mode == "important"
+                and notif_row.get("verdict") in COHORT_MESSAGE_VERDICTS
+            )
+        )
+        if wants_details:
+            try:
+                cohort_text = format_cohort_message(row)
+            except Exception as exc:
+                cohort_text = None
+                print(
+                    f"   ⚠️ Не удалось собрать базу сравнения для "
+                    f"id={notif_row.get('id')}: {exc}"
+                )
+            if cohort_text:
+                _telegram_details_store.put(notif_row.get("id"), cohort_text)
+                buttons.append({
+                    "text": "📊 База сравнения",
+                    "callback_data": f"cohort:{notif_row.get('id')}",
+                })
+        keyboard = {"inline_keyboard": [buttons]} if buttons else None
+        ok = await send_telegram_message(text, reply_markup=keyboard)
         if ok:
             print(f"   📨 Telegram: отправлено id={notif_row.get('id')} ({notif_row.get('verdict')})")
         else:
@@ -859,31 +1318,6 @@ async def notify_telegram(rows):
                 f"   ⚠️ Telegram: не удалось отправить id={notif_row.get('id')} "
                 "после всех попыток — запись всё равно осталась в notifications_log.csv"
             )
-
-        # Второе сообщение — база сравнения. Строится из `row`, а не из
-        # notif_row: to_notification_row() оставляет только колонки
-        # журнала, а _cohort_members туда намеренно не входит.
-        # Отправляем только если основное ушло: иначе получится список
-        # сравнимых без самого объявления.
-        #
-        # В диагностическом режиме прикладывается к КАЖДОЙ квартире:
-        # смысл режима именно в том, чтобы видеть, на чём построена
-        # оценка в каждом случае, а не только там, где сработал вердикт.
-        wants_cohort = (
-            SEND_ALL_VERDICTS
-            or notif_row.get("verdict") in COHORT_MESSAGE_VERDICTS
-        )
-        if ok and wants_cohort:
-            try:
-                cohort_text = format_cohort_message(row)
-            except Exception as exc:
-                # Диагностика не должна ронять уведомления.
-                cohort_text = None
-                print(f"   ⚠️ Не удалось собрать базу сравнения для id={notif_row.get('id')}: {exc}")
-            if cohort_text:
-                await asyncio.sleep(TELEGRAM_SEND_DELAY_SEC)
-                if await send_telegram_message(cohort_text):
-                    print(f"   📎 Telegram: база сравнения к id={notif_row.get('id')}")
 
         await asyncio.sleep(TELEGRAM_SEND_DELAY_SEC)
 
@@ -906,16 +1340,18 @@ def adapt_collector_listing(card, event):
 
     Поля карточки (/listings/{id}) уже совпадают по именам с тем, что
     ожидает Stage 3 (id, price, rooms, square_m2, district, street,
-    seller_type, ...) — переименовывать нечего. Из карточки нет только
-    двух вещей, которые несёт СОБЫТИЕ (/listings/changes): reason и
-    old_price (цена ДО изменения; сама карточка отдаёт только текущую
-    цену). Остальные поля карточки (status, first_seen_at и т.п.) для
+    seller_type, ...) — переименовывать нечего. Из карточки нет полей,
+    которые несёт СОБЫТИЕ (/listings/changes): reason, old_price (цена
+    ДО изменения), event_id и observed_at. Последние два нужны компактному
+    журналу прогнозов. Остальные поля карточки (status, first_seen_at и т.п.) для
     Stage 3 не нужны, но и не мешают — normalize_candidate/score_row
     читают только свои ключи, лишние молча игнорируются при записи в CSV.
     """
     row = dict(card)
     row["reason"] = event.get("reason")
     row["old_price"] = event.get("old_price")
+    row["collector_event_id"] = event.get("event_id")
+    row["collector_observed_at"] = event.get("observed_at")
     return row
 
 
@@ -1006,6 +1442,9 @@ def _build_stage3_context(baseline_path):
     ref_areas = module.median_area_by_rooms(usable)
     spatial_index = module.SpatialIndex(usable)
     building_index = module.BuildingIndex(usable)
+    repair_premium_signals = module.build_repair_premium_signals(
+        usable, q25, q75, room_bounds
+    )
     print("📐 [stage3] наклон по площади (внутри домов): " + "; ".join(sorted(slope_notes)))
 
     return {
@@ -1021,6 +1460,7 @@ def _build_stage3_context(baseline_path):
         "ref_areas": ref_areas,
         "spatial_index": spatial_index,
         "building_index": building_index,
+        "repair_premium_signals": repair_premium_signals,
     }
 
 
@@ -1047,12 +1487,89 @@ def score_incoming(rows):
             spatial_index=ctx["spatial_index"],
             building_index=ctx["building_index"],
             ref_areas=ctx["ref_areas"],
+            repair_premium_signals=ctx["repair_premium_signals"],
         )
         merged = dict(row)
         merged.update(result)
         results.append(merged)
 
     return results
+
+
+def append_prediction_audit(rows, path=None):
+    """Durable-запись прогноза на момент события Collector.
+
+    event_id обеспечивает идемпотентность повторной страницы, а новое
+    price_drop того же listing_id сохраняется отдельной строкой.
+    """
+    path = path or PREDICTION_AUDIT_DB
+    predicted_at = utcnow_iso()
+    records = []
+    for row in rows:
+        if str(row.get("source") or "") != "collector":
+            continue
+        try:
+            event_id = int(row.get("collector_event_id"))
+        except (TypeError, ValueError):
+            continue
+
+        asking_price = to_float(row.get("price"))
+        area = to_float(row.get("square_m2"))
+        fair_price_m2 = to_float(row.get("base_price_m2"))
+        predicted_price = (
+            round(fair_price_m2 * area, 2)
+            if fair_price_m2 is not None and area is not None and area > 0
+            else None
+        )
+        records.append((
+            event_id,
+            str(row.get("id") or ""),
+            str(row.get("reason") or ""),
+            str(row.get("collector_observed_at") or ""),
+            predicted_at,
+            asking_price,
+            predicted_price,
+            to_float(row.get("benchmark_confidence")),
+            str(row.get("verdict") or ""),
+            PREDICTION_MODEL_VERSION,
+        ))
+
+    if not records:
+        return 0
+
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    with sqlite3.connect(path, timeout=30) as conn:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=FULL")
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS predictions (
+                collector_event_id INTEGER PRIMARY KEY,
+                listing_id TEXT NOT NULL,
+                reason TEXT,
+                event_at TEXT,
+                predicted_at TEXT NOT NULL,
+                asking_price REAL,
+                predicted_price REAL,
+                benchmark_confidence REAL,
+                verdict TEXT,
+                model_version TEXT NOT NULL
+            )
+            """
+        )
+        before = conn.total_changes
+        conn.executemany(
+            """
+            INSERT OR IGNORE INTO predictions (
+                collector_event_id, listing_id, reason, event_at,
+                predicted_at, asking_price, predicted_price,
+                benchmark_confidence, verdict, model_version
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            records,
+        )
+        inserted = conn.total_changes - before
+    return inserted
 
 
 MANUAL_REVIEW_MIN_DIFF_PCT = 0.05
@@ -1082,7 +1599,7 @@ def candidate_is_sendable(row):
     # Диагностический режим: пропускаем всё, что вообще поддаётся оценке.
     # passes_basic_sanity выше остаётся — строка без валидной цены не
     # несёт никакой информации даже для разбора.
-    if SEND_ALL_VERDICTS:
+    if telegram_send_all_verdicts():
         return True
     if row.get("verdict") == "НАХОДКА":
         return True
@@ -1274,6 +1791,12 @@ async def _score_and_notify(rows, source):
     # Stage 3 сохранит их с недостаточной уверенностью; отправка
     # всё равно невозможна без валидной цены.
     scored = score_incoming(rows)
+
+    # До Telegram-фильтра: в историю попадают все рассчитанные квартиры.
+    # Ошибка записи прерывает обработку, а повтор безопасен благодаря PK.
+    audit_inserted = append_prediction_audit(scored)
+    if audit_inserted:
+        print(f"   🧾 [{source}] сохранено прогнозов для будущего eval: {audit_inserted}")
 
     try:
         fields = []
@@ -1585,7 +2108,10 @@ _llm_failures = {}  # курсор начала страницы -> скольк
 
 
 def _event_too_old(event):
-    """True, если событие старше COLLECTOR_MAX_EVENT_AGE_H (по observed_at).
+    """True, если событие старше окна Stage 2/Telegram (по observed_at).
+
+    Это окно не относится к фотооценке: photo gateway должен увидеть каждую
+    доступную карточку из накопившейся ленты, даже если Telegram она уже не нужна.
     Нет/не разбирается observed_at — считаем событие свежим."""
     if COLLECTOR_MAX_EVENT_AGE_H <= 0:
         return False
@@ -1612,6 +2138,84 @@ async def _find_feed_end():
             return cursor
 
 
+def _attach_interior_result(row, interior):
+    """Copy only the stable photo-evaluation contract into a scoring row."""
+    status = interior.get("interior_status_now", interior.get("status"))
+    score = interior.get("interior_score_now", interior.get("score"))
+    coverage = interior.get("interior_coverage_now", interior.get("coverage"))
+    version = interior.get(
+        "interior_evaluator_version_now", interior.get("evaluator_version")
+    )
+    row["interior_status"] = status or ""
+    row["interior_score"] = "" if score is None else score
+    row["interior_coverage"] = coverage or ""
+    row["interior_evaluator_version"] = version or ""
+    return row
+
+
+async def interior_decision_loop(queue_store):
+    """Score fresh cards only after photo evaluation, with a bounded wait.
+
+    The Collector cursor advances after enqueue_decision(), so a slow photo
+    request cannot block or lose the event feed. The decision row itself is
+    durable and is retried after restarts.
+    """
+    while True:
+        jobs = queue_store.claim_decisions(
+            max_wait_seconds=INTERIOR_DECISION_MAX_WAIT_SEC,
+            limit=20,
+        )
+        if not jobs:
+            await asyncio.sleep(2)
+            continue
+        rows = []
+        by_listing = {}
+        for job in jobs:
+            row = json.loads(job["row_json"])
+            if job.get("interior_status_now"):
+                _attach_interior_result(row, job)
+            rows.append(row)
+            by_listing.setdefault(str(job["listing_id"]), []).append(job)
+        job_ids = [int(job["decision_id"]) for job in jobs]
+        try:
+            await process_and_notify(
+                rows, "collector", drop_llm_failures=False,
+            )
+        except LlmRowsFailed as exc:
+            failed = set(exc.ids)
+            retry_ids = [
+                int(job["decision_id"]) for listing in failed
+                for job in by_listing.get(listing, ())
+                if int(job.get("attempt_count") or 0) < LLM_FAIL_MAX_ATTEMPTS - 1
+            ]
+            dropped_ids = [
+                int(job["decision_id"]) for listing in failed
+                for job in by_listing.get(listing, ())
+                if int(job.get("attempt_count") or 0) >= LLM_FAIL_MAX_ATTEMPTS - 1
+            ]
+            unresolved = set(retry_ids) | set(dropped_ids)
+            done_ids = [value for value in job_ids if value not in unresolved]
+            done_ids.extend(dropped_ids)
+            queue_store.complete_decisions(done_ids)
+            queue_store.retry_decisions(
+                retry_ids, error=str(exc), delay_seconds=COLLECTOR_POLL_INTERVAL_SEC,
+            )
+            print(
+                f"   ⚠️ [decision] {exc}; повтор={len(retry_ids)}, "
+                f"пропущено после {LLM_FAIL_MAX_ATTEMPTS} попыток={len(dropped_ids)}."
+            )
+        except Exception as exc:
+            queue_store.retry_decisions(
+                job_ids,
+                error=f"{type(exc).__name__}: {exc}",
+                delay_seconds=COLLECTOR_POLL_INTERVAL_SEC,
+            )
+            print(f"   ⚠️ [decision] пакет не обработан: {type(exc).__name__}: {exc}")
+        else:
+            queue_store.complete_decisions(job_ids)
+            print(f"   ✅ [decision] обработано карточек: {len(job_ids)}")
+
+
 async def collector_job():
     """Один плановый тик опроса rieltorcollector.
 
@@ -1619,10 +2223,10 @@ async def collector_job():
     ленты заполнена целиком (count == COLLECTOR_PAGE_LIMIT), значит
     событий больше, чем влезло, и следующую страницу нужно забрать сразу
     же, не дожидаясь следующего planового тика (см. ТЗ). Курсор
-    сохраняется только ПОСЛЕ того, как process_and_notify durable-но
-    обработал страницу — на любой ошибке (сеть/401/5xx/сбой Stage 2)
-    выходим без сохранения курсора, и вся страница будет запрошена
-    заново на следующем тике (дубли гасит ever_sent_ids.json).
+    При включённой фотооценке свежая карточка сначала durable сохраняется
+    в SQLite-очереди решения, и только после этого двигается курсор; Stage 2/3
+    выполнит отдельный decision worker. При выключенной фотооценке действует
+    прежний синхронный путь. Ошибка до durable-записи оставляет курсор на месте.
     """
     print(f"\n=== [collector] цикл {utcnow_iso()} ===")
     if not os.path.isfile(BASELINE_CSV):
@@ -1669,21 +2273,23 @@ async def collector_job():
             print(f"   ℹ️ [collector] новых событий нет (since={cursor}).")
             return
 
-        wanted, skipped_reason, skipped_old = [], 0, 0
+        wanted, skipped_reason, old_for_notifications = [], 0, 0
         for event in events:
             if event.get("reason") not in COLLECTOR_REASONS:
                 skipped_reason += 1
-            elif _event_too_old(event):
-                skipped_old += 1
             else:
                 wanted.append(event)
-        if skipped_reason or skipped_old:
+                if _event_too_old(event):
+                    old_for_notifications += 1
+        if skipped_reason or old_for_notifications:
             print(
-                f"   ℹ️ [collector] пропущено событий: не new/price_drop — {skipped_reason}, "
-                f"старше {COLLECTOR_MAX_EVENT_AGE_H}ч — {skipped_old}."
+                f"   [collector] не new/price_drop — {skipped_reason}; "
+                f"старых для Stage 2/Telegram (> {COLLECTOR_MAX_EVENT_AGE_H}ч) — "
+                f"{old_for_notifications}. Фотооценка всё равно проверит их."
             )
 
         rows = []
+        decisions_enqueued = 0
         aborted = False
         for event in wanted:
             advert_id = event.get("id")
@@ -1713,7 +2319,38 @@ async def collector_job():
                     f"из event_id={event.get('event_id')} (reason={event.get('reason')})"
                 )
                 continue
-            rows.append(normalize_collector_row(adapt_collector_listing(card, event)))
+            too_old = _event_too_old(event)
+            interior = None
+            if _interior_gateway is not None:
+                interior = _interior_gateway.consider_card(
+                    card, event.get("reason"), priority=0 if too_old else 100,
+                )
+                print(
+                    f"   [interior] id={advert_id}: {interior['action']} "
+                    f"(status={interior.get('status')})"
+                )
+            # Возраст события ограничивает только дорогие Stage 2/Stage 3/Telegram.
+            # Photo gateway выше уже durable-но переиспользовал или поставил
+            # задание для каждой доступной карточки, включая старую ленту.
+            if not too_old:
+                normalized = normalize_collector_row(adapt_collector_listing(card, event))
+                if _interior_store is not None:
+                    _attach_interior_result(normalized, interior or {})
+                    decision_delivery_key = (interior or {}).get("delivery_key")
+                    if (interior or {}).get("status") in TERMINAL_STATUSES:
+                        # The complete compact result is already copied into
+                        # row_json. It must remain immediately scoreable even
+                        # if Cleaner ACK/GC removes the temporary delivery.
+                        decision_delivery_key = None
+                    _interior_store.enqueue_decision(
+                        event_id=int(event["event_id"]),
+                        listing_id=advert_id,
+                        delivery_key_value=decision_delivery_key,
+                        row=normalized,
+                    )
+                    decisions_enqueued += 1
+                else:
+                    rows.append(normalized)
 
         if aborted:
             return
@@ -1738,6 +2375,11 @@ async def collector_job():
                 return
             _llm_failures.pop(cursor, None)
             print(f"   📬 [collector] карточек в странице: {len(rows)}, реально отправлено: {len(sent)}")
+        elif decisions_enqueued:
+            print(
+                f"   📥 [collector] свежих карточек durable поставлено на решение: "
+                f"{decisions_enqueued}."
+            )
         else:
             print(f"   ℹ️ [collector] на странице из {len(events)} событий нечего оценивать.")
 
@@ -1772,20 +2414,102 @@ async def collector_loop():
     await safe_periodic_loop("collector", COLLECTOR_POLL_INTERVAL_SEC, collector_job)
 
 
+async def interior_worker_loop(worker_number, queue_store, client, auth_failed):
+    cache = RenovationStore(INTERIOR_CACHE_DB)
+    worker = InteriorQueueWorker(
+        queue_store=queue_store,
+        renovation_store=cache,
+        client=client,
+        retry_delay_seconds=INTERIOR_RETRY_DELAY_SEC,
+    )
+    try:
+        while not auth_failed.is_set():
+            try:
+                outcome = await worker.run_once()
+            except InteriorAuthenticationError as exc:
+                auth_failed.set()
+                print(f"   [interior-{worker_number}] authorization error; queue paused: {exc}")
+                return
+            if outcome is None:
+                await asyncio.sleep(2)
+                continue
+            print(
+                f"   [interior-{worker_number}] evaluation_id={outcome['evaluation_id']}: "
+                f"{outcome['status']}"
+            )
+    finally:
+        cache.close()
+
+
+async def interior_gc_loop(queue_store):
+    while True:
+        requeued = queue_store.requeue_errors(older_than_hours=INTERIOR_ERROR_RETRY_H)
+        if requeued:
+            print(f"   [interior-retry] requeued technical errors: {requeued}")
+        details = queue_store.garbage_collect_details(grace_hours=24)
+        if details["deleted"]:
+            with RenovationStore(INTERIOR_CACHE_DB) as cache:
+                pruned = cache.prune_orphans(
+                    listing_ids=details["orphaned_listing_ids"],
+                    evaluation_keys=details["orphaned_evaluation_keys"],
+                )
+            print(
+                f"   [interior-gc] removed acknowledged rows: {details['deleted']}; "
+                f"orphan cache results: {pruned['results']}"
+            )
+        await asyncio.sleep(3600)
+
+
 async def main():
+    global _interior_gateway, _interior_store
     validate_configuration()
     print(
         "Оркестратор запущен. baseline скачивается с rieltor-cleaner и "
         "целиком заменяет локальный файл; baseline builder и original "
         "Stage 1/2 здесь не запускаются. "
         f"Опрос rieltorcollector каждые {COLLECTOR_POLL_INTERVAL_SEC}s. "
-        "При сбое (сеть/401/5xx/Stage 2) курсор не продвигается — "
-        "страница будет запрошена заново на следующем цикле. "
+        "При сбое до durable-записи карточки курсор не продвигается. "
+        "После записи фотооценка и Stage 2/3 продолжаются из SQLite после рестарта. "
         f"Telegram-доставка: {'включена' if TELEGRAM_ENABLED else 'выключена'}."
     )
     loops = [collector_loop()]
+    if TELEGRAM_BOT_TOKEN and TELEGRAM_ADMIN_USER_ID:
+        loops.append(telegram_control_loop())
     if BASELINE_REFRESH_ENABLED:
         loops.append(baseline_loop())
+    if INTERIOR_ENABLED:
+        from openai import AsyncOpenAI
+
+        queue_store = InteriorOnlineStore(INTERIOR_DB)
+        resumed = queue_store.resume_incomplete()
+        resumed_decisions = queue_store.resume_decisions()
+        _interior_store = queue_store
+        _interior_gateway = InteriorGateway(
+            store=queue_store,
+            baseline=CleanerBaselineIndex(BASELINE_CSV),
+        )
+        server, _thread = start_interior_api(
+            queue_store,
+            host=INTERIOR_API_HOST,
+            port=INTERIOR_API_PORT,
+            api_key=INTERIOR_EXCHANGE_API_KEY,
+        )
+        print(
+            f"   [interior] API started on {INTERIOR_API_HOST}:{INTERIOR_API_PORT}; "
+            f"resumed evaluations: {resumed}; decisions: {resumed_decisions}"
+        )
+        client = AsyncOpenAI(
+            api_key=INTERIOR_OPENAI_API_KEY,
+            max_retries=0,
+            timeout=180.0,
+        )
+        auth_failed = asyncio.Event()
+        loops.extend(
+            interior_worker_loop(number, queue_store, client, auth_failed)
+            for number in range(1, INTERIOR_CONCURRENCY + 1)
+        )
+        loops.append(interior_gc_loop(queue_store))
+        loops.append(interior_decision_loop(queue_store))
     await asyncio.gather(*loops)
 
 
