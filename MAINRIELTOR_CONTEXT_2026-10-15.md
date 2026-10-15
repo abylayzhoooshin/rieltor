@@ -869,3 +869,21 @@ Territorial/hotspot scoring по-прежнему отложен и не вли�
 - `STRICT_RADIUS_KM` уменьшен с 5 до 1 км;
 - внутри 1 км доноры агрегируются обычной медианой без весов по расстоянию, а
   всё, что дальше 1 км, полностью исключается.
+
+Фактическое применение primary-отчёта выполнено через revision-safe endpoint:
+
+```text
+safe full-clique groups in report: 357
+applied current groups:            341
+stale groups kept separate:         16
+blocked non-clique components:      10
+entity count:               17 911 -> 17 535
+actual entity merges:                  376
+uncertain merged:                         0
+production_clean_switched:           false
+```
+
+Stale означает, что карточка изменилась после vision-оценки: старое решение
+не переносится на новую ревизию автоматически. Для аудита `auto_merged=0`
+сохраняет узкий смысл «matcher не сливает без AI-решения»; отдельные поля
+`ai_merge_groups` и `ai_merged_pairs` показывают применённые фото-решения.
