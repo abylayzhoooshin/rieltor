@@ -26,7 +26,7 @@ from interior_price_adjustment import usable_interior_score
 
 MAX_AREA_RATIO = 1.20
 MAX_DATE_GAP_DAYS = 180
-STRICT_RADIUS_KM = 5.0
+STRICT_RADIUS_KM = 1.0
 STRICT_CLASS_DELTA = 0.25
 STRICT_FLOOR_GAP = 2.0
 MIN_DONOR_BUILDINGS = 2

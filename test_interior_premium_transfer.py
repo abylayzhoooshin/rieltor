@@ -1,6 +1,10 @@
 import unittest
 
-from interior_premium_transfer import build_premium_signals, strict_premium_evidence
+from interior_premium_transfer import (
+    STRICT_RADIUS_KM,
+    build_premium_signals,
+    strict_premium_evidence,
+)
 from interior_price_adjustment import EVALUATOR_VERSION
 
 
@@ -35,10 +39,10 @@ class InteriorPremiumTransferTests(unittest.TestCase):
         self.weak = row("weak", "target", "1", 4.4, 5000)
         self.pool = [
             self.weak,
-            row("d1-low", "donor", "1", 4.3, 5000, lon=76.95),
-            row("d1-high", "donor", "1", 6.5, 7500, lon=76.95),
-            row("d2-low", "donor", "2", 4.2, 5100, lon=76.96),
-            row("d2-high", "donor", "2", 6.6, 7140, lon=76.96),
+            row("d1-low", "donor", "1", 4.3, 5000, lon=76.945),
+            row("d1-high", "donor", "1", 6.5, 7500, lon=76.945),
+            row("d2-low", "donor", "2", 4.2, 5100, lon=76.95),
+            row("d2-high", "donor", "2", 6.6, 7140, lon=76.95),
         ]
 
     def test_two_buildings_create_strict_evidence(self):
@@ -56,6 +60,21 @@ class InteriorPremiumTransferTests(unittest.TestCase):
         signals = build_premium_signals(one_donor_pool, class_score, {}, 0, 1)
         evidence = strict_premium_evidence(
             self.target, one_donor_pool, signals, class_score, {}, 0, 1
+        )
+        self.assertIsNone(evidence)
+
+    def test_donors_outside_one_kilometre_are_excluded_without_weights(self):
+        self.assertEqual(STRICT_RADIUS_KM, 1.0)
+        far_pool = [
+            self.weak,
+            row("d1-low", "donor", "1", 4.3, 5000, lon=76.96),
+            row("d1-high", "donor", "1", 6.5, 7500, lon=76.96),
+            row("d2-low", "donor", "2", 4.2, 5100, lon=76.97),
+            row("d2-high", "donor", "2", 6.6, 7140, lon=76.97),
+        ]
+        signals = build_premium_signals(far_pool, class_score, {}, 0, 1)
+        evidence = strict_premium_evidence(
+            self.target, far_pool, signals, class_score, {}, 0, 1
         )
         self.assertIsNone(evidence)
 

@@ -182,7 +182,7 @@ NOTIFICATIONS_LOG_CSV = os.path.join(DATA_DIR, "notifications_log_v4.csv")
 # Компактный неизменяемый журнал ВСЕХ прогнозов по событиям Collector, а
 # не только квартир, отправленных в Telegram.
 PREDICTION_AUDIT_DB = os.path.join(DATA_DIR, "prediction_audit.sqlite3")
-PREDICTION_MODEL_VERSION = "stage3-v7-strict-repair-premium"
+PREDICTION_MODEL_VERSION = "stage3-v8-smooth-repair-premium-1km"
 TELEGRAM_ACCESS_FILE = os.path.join(DATA_DIR, "telegram_access.json")
 TELEGRAM_DETAILS_DB = os.path.join(DATA_DIR, "telegram_details.sqlite3")
 _telegram_access_store = TelegramAccessStore(TELEGRAM_ACCESS_FILE)

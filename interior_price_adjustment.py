@@ -26,7 +26,16 @@ MIN_REFERENCE_SCORES = 2
 # сначала приводится к классу ремонта цели. Премии — в log-price; они выбраны
 # на старой части baseline и затем проверены на трёх следующих временных
 # окнах. Это не линейная шкала: основной рыночный скачок проходит около 6.
-PAIRWISE_CLASS_LOG_PREMIUM = (0.0, 0.03, 0.12, 0.18)
+# Непрерывная нелинейная кривая вместо четырёх классов ремонта. Каждый
+# переход — smoothstep: на краях производная равна нулю, поэтому квартира не
+# получает скачок справедливой цены из-за сотой доли балла около 5.5/6/7.
+# Суммарные уровни (0.03/0.12/0.18 log-price) сохраняют наблюдавшийся масштаб,
+# но теперь являются мягкими плато, а не дискретными корзинами.
+REPAIR_PREMIUM_TRANSITIONS = (
+    (5.25, 5.75, 0.03),
+    (5.75, 6.25, 0.09),
+    (6.75, 7.25, 0.06),
+)
 PAIRWISE_SCORE_SIMILARITY_SIGMA = 0.70
 PAIRWISE_SIMILARITY_FLOOR = 0.15
 PAIRWISE_CANDIDATE_SHARE = 0.75
@@ -89,15 +98,17 @@ def _weighted_quantile(values: list[tuple[float, float]], quantile: float) -> fl
     return values[-1][0]
 
 
-def _repair_class(score: float) -> int:
-    """Нелинейный класс ремонта: слабый / переходный / хороший / высокий."""
-    if score < 5.5:
-        return 0
-    if score < 6.0:
-        return 1
-    if score < 7.0:
-        return 2
-    return 3
+def _smoothstep(value: float) -> float:
+    value = max(0.0, min(1.0, value))
+    return value * value * (3.0 - 2.0 * value)
+
+
+def _repair_log_premium(score: float) -> float:
+    """Плавная нелинейная рыночная премия за состояние ремонта."""
+    premium = 0.0
+    for start, end, increment in REPAIR_PREMIUM_TRANSITIONS:
+        premium += increment * _smoothstep((score - start) / (end - start))
+    return premium
 
 
 def _geometric_blend(left: float, right: float, right_share: float) -> float:
@@ -120,7 +131,7 @@ def _individual_interior_estimate(
     """
     pairs: list[tuple[float, float]] = []
     ids: set[str] = set()
-    target_premium = PAIRWISE_CLASS_LOG_PREMIUM[_repair_class(target_score)]
+    target_premium = _repair_log_premium(target_score)
 
     for cohort in cohort_infos:
         cohort_weight = max(0.0, float(cohort.get("weight") or 0.0))
@@ -133,7 +144,7 @@ def _individual_interior_estimate(
             if usable is None or price_m2 is None or price_m2 <= 0:
                 continue
             score, score_confidence = usable
-            comparable_premium = PAIRWISE_CLASS_LOG_PREMIUM[_repair_class(score)]
+            comparable_premium = _repair_log_premium(score)
             log_adjustment = max(
                 -MAX_ABS_LOG_ADJUSTMENT,
                 min(MAX_ABS_LOG_ADJUSTMENT, target_premium - comparable_premium),
@@ -346,9 +357,6 @@ def adjust_price_for_interior(
             if individual_n <= 3:
                 adjusted_price_m2 = candidate
                 method = "individual_thin_sample"
-            elif _repair_class(target_score) == 0:
-                adjusted_price_m2 = candidate
-                method = "individual_weak_interior"
             elif individual_n >= PAIRWISE_MANY_COMPARABLES:
                 adjusted_price_m2 = _geometric_blend(
                     legacy_price_m2,

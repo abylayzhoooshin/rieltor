@@ -4,6 +4,7 @@ import unittest
 from interior_price_adjustment import (
     EVALUATOR_VERSION,
     MAX_ABS_LOG_ADJUSTMENT,
+    _repair_log_premium,
     adjust_price_for_interior,
 )
 
@@ -29,6 +30,18 @@ def scored(
 
 
 class InteriorPriceAdjustmentTests(unittest.TestCase):
+    def test_repair_premium_is_smooth_and_monotonic(self):
+        values = [_repair_log_premium(score / 100) for score in range(100, 1001)]
+        self.assertTrue(all(left <= right for left, right in zip(values, values[1:])))
+        for boundary in (5.5, 6.0, 7.0):
+            self.assertLess(
+                abs(_repair_log_premium(boundary + 0.001)
+                    - _repair_log_premium(boundary - 0.001)),
+                0.001,
+            )
+        self.assertAlmostEqual(_repair_log_premium(1.0), 0.0)
+        self.assertAlmostEqual(_repair_log_premium(10.0), 0.18)
+
     def test_unknown_target_never_changes_price(self):
         cohorts = [{"weight": 1.0, "rows": [scored(5, listing_id="a"), scored(6, listing_id="b")]}]
         result = adjust_price_for_interior(5000, {}, cohorts)
@@ -173,7 +186,7 @@ class InteriorPriceAdjustmentTests(unittest.TestCase):
             {"weight": 0.1, "rows": distant},
         ]
         result = adjust_price_for_interior(5000, scored(4.5), cohorts)
-        self.assertEqual(result["interior_adjustment_method"], "individual_weak_interior")
+        self.assertEqual(result["interior_adjustment_method"], "individual_mid_sample")
         self.assertLess(result["interior_individual_price_m2"], 5000)
 
     def test_partial_target_stays_on_legacy_formula(self):
