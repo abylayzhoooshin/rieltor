@@ -35,7 +35,7 @@ import statistics
 import time
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-BASE = os.path.join(ROOT, "baseline", "krisha_almaty_baseline.csv")
+BASE = os.path.join(ROOT, "baseline", "krisha_astana_baseline.csv")
 
 
 def load_module(path, name):
@@ -83,10 +83,6 @@ def build_ctx(m, pool):
     }
     if hasattr(m, "median_area_by_rooms"):
         ctx["ref"] = m.median_area_by_rooms(pool)
-    if hasattr(m, "build_repair_premium_signals"):
-        ctx["repair_premium_signals"] = m.build_repair_premium_signals(
-            pool, q25, q75, rb
-        )
     return ctx
 
 
@@ -96,8 +92,6 @@ def score_all(m, ctx, targets):
     for t in targets:
         if "ref" in ctx:
             kw["ref_areas"] = ctx["ref"]
-        if "repair_premium_signals" in ctx:
-            kw["repair_premium_signals"] = ctx["repair_premium_signals"]
         r = m.score_row(
             t, ctx["pool"], ctx["city"], ctx["si"], ctx["q25"], ctx["q75"],
             soft_target=False, room_bounds=ctx["rb"], class_priors=ctx["cp"],

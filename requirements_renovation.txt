@@ -1,3 +1,0 @@
-# Добавить к зависимостям Almaty Cleaner, не заменяя его requirements целиком.
-openai==3.16.2
-aiohttp==3.12.15

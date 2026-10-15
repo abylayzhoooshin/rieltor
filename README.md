@@ -1,6 +1,6 @@
 # rieltor-orchestrator
 
-Мониторинг аренды квартир в Алматы на krisha.kz: сервис забирает новые и
+Мониторинг аренды квартир в Астане на krisha.kz: сервис забирает новые и
 подешевевшие объявления, оценивает каждое против эталонной базы честных
 цен и присылает в Telegram только то, что стоит внимания — находки и
 подозрительные объявления.
@@ -21,8 +21,6 @@ rieltor-cleaner  ──(готовый baseline, раз в 12ч)───┘    
 ```
 GET /listings/changes  — курсорная лента событий (new / price_drop)
 GET /listings/{id}     — полная карточка по каждому событию
-  → фотооценка или точное переиспользование по id+хешу фото+версии
-  → durable SQLite-очередь ждёт результат (не более 20 минут)
   → incoming_clean_v2.py   мягкая очистка (ничего не выбрасывает)
   → stage2_llm_analyze.py  разбор описания через OpenAI
   → stage3_benchmark_v3.py оценка против baseline, вердикт
@@ -41,7 +39,7 @@ GET /listings/{id}     — полная карточка по каждому с�
 
 **Outbox-first:** запись в журнал и реестр происходит *до* отправки в
 Telegram. Неудачная отправка не приведёт к повторной рассылке на
-следующем цикле, зато останется в `notifications_log_v4.csv`.
+следующем цикле, зато останется в `notifications_log_v3.csv`.
 
 ## Структура
 
@@ -56,9 +54,6 @@ Telegram. Неудачная отправка не приведёт к повт�
 | `stage2_llm_analyze.py` | разбор описаний через OpenAI |
 | `incoming_clean_v2.py` | мягкая очистка входящих строк |
 | `eval_stage3.py` | замер качества оценки: старая версия против новой |
-| `interior_price_adjustment.py` | поправка справедливой цены на ремонт |
-| `interior_premium_transfer.py` | строгий перенос крупной ремонтной премии между сопоставимыми зданиями |
-| `eval_interior_adjustment.py` | проверка поправки на hold-out части baseline |
 | `stage3_benchmark_v3_old.py` | прошлая версия Stage 3 — эталон для сравнения в `eval_stage3.py` |
 | `for_ms3_*` | спецификация API соседнего сервиса-сборщика |
 
@@ -82,9 +77,9 @@ python eval_stage3.py --targets 2500 --seeds 1
 
 ## Деплой на Render
 
-Сервис — **Web Service**: он продолжает опрашивать ленту в фоне и одновременно
-отдаёт Cleaner готовые фотооценки через защищённый HTTP API. Используется
-Starter с persistent disk; `/health` служит healthcheck Render.
+Сервис — **Background Worker**, не Web Service: он не слушает HTTP, а
+бесконечно опрашивает ленту раз в 60 секунд. Free-тариф Render усыпляет
+web-сервисы через 15 минут без запросов и не даёт постоянный диск.
 
 1. Залить репозиторий на GitHub.
 2. Render Dashboard → **New → Blueprint**, выбрать этот репозиторий.
@@ -94,38 +89,15 @@ Starter с persistent disk; `/health` служит healthcheck Render.
 
    | Переменная | Обязательна | Что это |
    |---|---|---|
-   | `RIELTOR_COLLECTOR_URL` | да | `https://rieltor-collector-almaty.onrender.com` |
+   | `RIELTOR_COLLECTOR_URL` | да | адрес сервиса-сборщика, без пути |
    | `RIELTOR_COLLECTOR_API_KEY` | да | его ключ (заголовок `X-API-Key`) |
-   | `RIELTOR_CLEANER_URL` | нет | Blueprint уже задаёт `https://rieltor-cleaner-almaty.onrender.com` |
    | `RIELTOR_CLEANER_API_KEY` | да | ключ сервиса baseline (см. ниже) |
    | `OPENAI_API_KEY` | да | без него Stage 2 не работает и сервис не стартует |
-   | `RENOVATION_OPENAI_API_KEY` | да | отдельный ключ OpenAI для фотооценки |
-   | `INTERIOR_EXCHANGE_API_KEY` | да | новый общий секрет обмена Mainrieltor ↔ Cleaner |
    | `TELEGRAM_BOT_TOKEN` | нет | без него работает молча, только журнал |
    | `TELEGRAM_CHAT_ID` | нет | узнать через `getUpdates` своего бота |
-   | `TELEGRAM_ADMIN_USER_ID` | для управления | единственный Telegram user_id с доступом к настройкам и выдаче доступов |
 
 4. Проверить в логах строку `DATA_DIR = /var/data (состояние,
    ПЕРСИСТЕНТНЫЙ)` — значит диск подключился.
-
-### Доступ к Telegram-боту
-
-Используется один бот. Новый человек пишет ему `/start`, после чего
-администратор получает кнопки **Разрешить / Отклонить**. Обычные пользователи
-только получают объявления; команды управления доступны исключительно
-`TELEGRAM_ADMIN_USER_ID`.
-
-Административные команды: `/users`, `/grant ID`, `/revoke ID`,
-`/mode all|useful`, `/cohorts all|important|off`, `/pause`, `/resume` и
-`/status`. Кнопка **База сравнения** открывает аналоги только по запросу и не
-создаёт автоматическое второе сообщение. Состояние доступа хранится в маленьком
-`telegram_access.json`; готовые тексты деталей — не более 500 записей и не
-дольше 1 часа в `telegram_details.sqlite3`. История переписки и фотографии не
-сохраняются.
-
-После проверки Mainrieltor включить обмен на стороне Cleaner: задать его
-`MAINRIELTOR_URL`, общий `MAINRIELTOR_INTERIOR_API_KEY`, установить
-`MAINRIELTOR_INTERIOR_SYNC_ENABLED=1` и вернуть `CLEANER_API_ONLY=0`.
 
 ### Почему ключ `RIELTOR_CLEANER_API_KEY` обязателен
 
@@ -143,14 +115,9 @@ Starter с persistent disk; `/health` служит healthcheck Render.
 
 - `ever_sent_ids.json` — реестр отправленного;
 - `collector_state.json` — курсор ленты событий;
-- `notifications_log_v4.csv` — журнал отправок с диагностикой ремонта;
-- `prediction_audit.sqlite3` — компактная история прогноза для каждого
-  события Collector; повторный `event_id` не дублируется, а новое снижение
-  цены того же объявления сохраняется отдельной строкой;
+- `notifications_log_v3.csv` — журнал отправок;
 - `baseline/` — скачанный эталон;
 - `cache/` — промежуточные файлы прогона.
-- `interior_online.sqlite3` — временная очередь фотооценок, outbox Cleaner и очередь решений;
-- `interior_content_cache.sqlite3` — кэш результатов по содержимому фото.
 
 Код при этом читается из слепка репозитория. Разделение важное: без
 диска реестр отправленного обнулялся бы при каждом деплое, и бот заново
@@ -161,12 +128,11 @@ Starter с persistent disk; `/health` служит healthcheck Render.
 
 ### Ресурсы
 
-Тариф Starter (512 МБ) с большим запасом: алматинский baseline — 17 МБ
-и ~7 000 строк, вдвое меньше астанинского, на котором мерили ~90 МБ в
-памяти. Регион в `render.yaml` — `singapore`, там же живут
-`rieltor-collector-almaty` и `rieltor-cleaner-almaty`. Регион у сервиса
-Render нельзя поменять после создания — если соседние сервисы переедут,
-этот придётся пересоздавать.
+Тариф Starter (512 МБ) с запасом: baseline занимает в памяти ~90 МБ,
+пик при загрузке ~101 МБ (замерено на 13 390 строках), загрузка ~0.4 с.
+Регион в `render.yaml` — `frankfurt`; его стоит поменять на тот, где уже
+работают соседние два сервиса, иначе каждый запрос к ним идёт лишние
+тысячи километров.
 
 ## Безопасность
 

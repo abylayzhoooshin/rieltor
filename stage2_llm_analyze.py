@@ -98,7 +98,7 @@ EXTRA_KEYS = ("parking", "balcony", "security", "view", "pets", "transport")
 # hash кэша, чтобы старые результаты автоматически переанализировались.
 PROMPT_VERSION = "stage2-v4-batch-api"
 
-SYSTEM_PROMPT = f"""Ты извлекаешь факты из объявлений об аренде квартир в Алматы (krisha.kz). Результат используется для статистической оценки цены аренды и для пометки объявлений с серьёзными проблемами.
+SYSTEM_PROMPT = f"""Ты извлекаешь факты из объявлений об аренде квартир в Астане (krisha.kz). Результат используется для статистической оценки цены аренды и для пометки объявлений с серьёзными проблемами.
 
 Тебе дают несколько объявлений подряд. Каждое начинается строкой "### id: <идентификатор>", далее идёт текст объявления и несколько полей со страницы.
 Верни СТРОГО ОДИН JSON-объект по заданной схеме: {{"results": [...]}}. Ровно один элемент на каждое поданное объявление, id копируй дословно.
@@ -559,8 +559,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Stage 2: извлечение признаков из объявлений через OpenAI API (пакетами)."
     )
-    parser.add_argument("--input", default="krisha_almaty_clean.csv", help="Входной CSV.")
-    parser.add_argument("--output", default="krisha_almaty_analyzed.csv", help="Выходной CSV с результатами Stage 2.")
+    parser.add_argument("--input", default="krisha_astana_clean.csv", help="Входной CSV.")
+    parser.add_argument("--output", default="krisha_astana_analyzed.csv", help="Выходной CSV с результатами Stage 2.")
     parser.add_argument("--cache", default="llm_analysis_cache.json", help="Файл кэша результатов LLM.")
     parser.add_argument(
         "--concurrency", type=int, default=CONCURRENCY,
