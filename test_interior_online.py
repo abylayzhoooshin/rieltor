@@ -1,11 +1,13 @@
 import csv
 import hashlib
+import io
 import json
 import sqlite3
 import tempfile
 import unittest
 import urllib.error
 import urllib.request
+from contextlib import redirect_stdout
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -300,6 +302,27 @@ class InteriorOnlineTests(unittest.TestCase):
             with urllib.request.urlopen(ack_request) as response:
                 ack = json.load(response)
             self.assertEqual(ack["acknowledged"], 1)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+
+    def test_http_api_does_not_log_successful_health_checks(self):
+        server, thread = start_interior_api(
+            self.store, host="127.0.0.1", port=0, api_key="test-secret",
+        )
+        output = io.StringIO()
+        try:
+            base = f"http://127.0.0.1:{server.server_port}"
+            with redirect_stdout(output):
+                with urllib.request.urlopen(base + "/health") as response:
+                    self.assertEqual(response.status, 200)
+                    self.assertEqual(json.load(response)["status"], "ok")
+                with self.assertRaises(urllib.error.HTTPError):
+                    urllib.request.urlopen(base + "/missing")
+            logs = output.getvalue()
+            self.assertNotIn('GET /health HTTP/1.1" 200', logs)
+            self.assertIn('GET /missing HTTP/1.1" 404', logs)
         finally:
             server.shutdown()
             server.server_close()

@@ -31,6 +31,22 @@ def make_handler(store: InteriorOnlineStore, api_key: str):
     class Handler(BaseHTTPRequestHandler):
         server_version = "mainrieltor-interior/1"
 
+        def log_request(self, code="-", size="-"):
+            # Render проверяет /health каждые несколько секунд. Успешная
+            # проверка не несёт диагностической ценности и иначе забивает
+            # application logs; ошибки health-check по-прежнему видны.
+            try:
+                status = int(code)
+            except (TypeError, ValueError):
+                status = None
+            if (
+                self.command in {"GET", "HEAD"}
+                and urlsplit(self.path).path == "/health"
+                and status == HTTPStatus.OK
+            ):
+                return
+            super().log_request(code, size)
+
         def log_message(self, fmt, *args):
             # ASCII prefix is deliberate: Render is UTF-8, but local Windows
             # consoles may use CP1251 and must not break the HTTP response.
